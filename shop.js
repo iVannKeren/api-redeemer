@@ -24,3 +24,5 @@ loginForm?.addEventListener('submit', async (event) => {
         alert(error.message);
     }
 });
+
+ main
