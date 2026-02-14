@@ -7,59 +7,72 @@
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen">
-    <div class="max-w-6xl mx-auto px-6 py-8">
+    <div class="max-w-7xl mx-auto px-6 py-8">
         <header class="mb-8">
-            <p class="text-cyan-400 uppercase tracking-[0.35em] text-xs mb-2">Digital account marketplace</p>
             <h1 class="text-4xl font-black">Digital Shop Pro</h1>
-            <p class="text-slate-300 mt-2">Jual akun premium seperti Vidio Premium, Netflix, Canva Pro, dan lainnya dengan dashboard admin stok terintegrasi.</p>
+            <p class="text-slate-300 mt-2">Manual payment + verifikasi Telegram + auto assign akun premium.</p>
         </header>
 
         <section class="grid lg:grid-cols-3 gap-6">
             <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6">
                 <h2 class="text-xl font-semibold mb-4">Login Sistem</h2>
                 <form id="loginForm" class="space-y-4">
-                    <div>
-                        <label class="block text-sm mb-1">Email</label>
-                        <input id="email" type="email" class="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 focus:outline-none focus:border-cyan-400" placeholder="admin@digitalshop.local" required>
-                    </div>
-                    <div>
-                        <label class="block text-sm mb-1">Password</label>
-                        <input id="password" type="password" class="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 focus:outline-none focus:border-cyan-400" placeholder="••••••••" required>
-                    </div>
-                    <button class="w-full bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold py-2 rounded-lg transition" type="submit">Login</button>
+                    <input id="email" type="email" class="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2" placeholder="admin@digitalshop.com" required>
+                    <input id="password" type="password" class="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2" placeholder="password" required>
+                    <button class="w-full bg-cyan-500 text-slate-950 font-bold py-2 rounded-lg" type="submit">Login</button>
                 </form>
-                <div class="mt-4 text-xs text-slate-400 space-y-1">
-                    <p><strong>Demo Admin:</strong> admin@digitalshop.local / admin123</p>
-                    <p><strong>Demo Buyer:</strong> buyer@digitalshop.local / buyer123</p>
+                <div class="mt-4 text-xs text-slate-400">
+                    <p><strong>Demo Admin:</strong> admin@digitalshop.com / admin123</p>
+                    <p><strong>Demo Buyer:</strong> buyer@digitalshop.com / buyer123</p>
                 </div>
-                <button id="logoutBtn" class="mt-4 w-full border border-slate-700 hover:border-cyan-400 py-2 rounded-lg hidden">Logout</button>
+                <button id="logoutBtn" class="mt-4 w-full border border-slate-700 py-2 rounded-lg hidden">Logout</button>
                 <p id="authStatus" class="mt-4 text-sm text-slate-300">Belum login.</p>
             </div>
 
             <div class="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-2xl p-6">
-                <div class="flex items-center justify-between mb-4">
-                    <h2 class="text-xl font-semibold">Katalog Premium</h2>
-                    <span class="text-xs px-3 py-1 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">Professional Theme</span>
-                </div>
+                <h2 class="text-xl font-semibold mb-4">Katalog Premium</h2>
                 <div id="productGrid" class="grid md:grid-cols-2 gap-4"></div>
             </div>
         </section>
 
+        <section id="clientArea" class="mt-6 bg-slate-900 border border-slate-800 rounded-2xl p-6 hidden">
+            <h2 class="text-xl font-semibold mb-4 text-cyan-300">Client Area · Manual Payment</h2>
+            <div class="grid md:grid-cols-2 gap-6">
+                <div>
+                    <h3 class="font-semibold mb-2">Pesanan Saya</h3>
+                    <div id="orderList" class="space-y-3"></div>
+                </div>
+                <div>
+                    <h3 class="font-semibold mb-2">Akun Premium Saya</h3>
+                    <div id="myAccounts" class="space-y-3"></div>
+                </div>
+            </div>
+        </section>
+
         <section id="adminPanel" class="mt-6 bg-slate-900 border border-slate-800 rounded-2xl p-6 hidden">
-            <h2 class="text-xl font-semibold mb-4 text-cyan-300">Admin Panel · Kelola Stock</h2>
-            <p class="text-sm text-slate-400 mb-4">Update stok akun premium secara real-time untuk setiap produk.</p>
-            <div class="overflow-x-auto">
-                <table class="w-full text-sm">
-                    <thead>
-                        <tr class="text-left border-b border-slate-800">
-                            <th class="py-2">Produk</th>
-                            <th class="py-2">Harga</th>
-                            <th class="py-2">Stock</th>
-                            <th class="py-2">Aksi</th>
-                        </tr>
-                    </thead>
-                    <tbody id="adminRows"></tbody>
-                </table>
+            <h2 class="text-xl font-semibold mb-4 text-cyan-300">Admin Panel</h2>
+
+            <div class="grid lg:grid-cols-2 gap-6">
+                <div class="border border-slate-800 rounded-xl p-4">
+                    <h3 class="font-semibold mb-3">Kelola Display Stock Produk</h3>
+                    <table class="w-full text-sm">
+                        <thead><tr><th class="text-left">Produk</th><th>Stock</th><th></th></tr></thead>
+                        <tbody id="adminRows"></tbody>
+                    </table>
+                </div>
+
+                <div class="border border-slate-800 rounded-xl p-4">
+                    <h3 class="font-semibold mb-3">Stok Akun Premium (email|password)</h3>
+                    <select id="stockProductId" class="w-full rounded bg-slate-950 border border-slate-700 p-2 mb-2"></select>
+                    <textarea id="stockBulkInput" class="w-full h-32 rounded bg-slate-950 border border-slate-700 p-2" placeholder="email1@gmail.com|pass1\nemail2@gmail.com|pass2"></textarea>
+                    <button id="stockBulkBtn" class="mt-2 px-4 py-2 bg-cyan-500 text-slate-950 rounded">Tambah Stok Bulk</button>
+                    <div id="stockList" class="mt-4 space-y-2 max-h-56 overflow-auto"></div>
+                </div>
+            </div>
+
+            <div class="mt-6 border border-slate-800 rounded-xl p-4">
+                <h3 class="font-semibold mb-3">Invoice Review</h3>
+                <div id="invoiceList" class="space-y-2"></div>
             </div>
         </section>
     </div>
