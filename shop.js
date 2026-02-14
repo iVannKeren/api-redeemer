@@ -11,8 +11,85 @@ const productGrid = document.getElementById('productGrid');
 const adminPanel = document.getElementById('adminPanel');
 const adminRows = document.getElementById('adminRows');
 
+const defaultProducts = [
+    {
+        id: 1,
+        name: 'Vidio Premium 30 Hari',
+        category: 'Streaming',
+        description: 'Akun Vidio Premium aktif 30 hari, siap pakai.',
+        price: 45000,
+        stock: 12,
+        badge: 'Best Seller'
+    },
+    {
+        id: 2,
+        name: 'Netflix Private 1 Profile',
+        category: 'Streaming',
+        description: 'Akses 1 profile private, garansi replace.',
+        price: 55000,
+        stock: 9,
+        badge: 'Popular'
+    },
+    {
+        id: 3,
+        name: 'Canva Pro 1 Bulan',
+        category: 'Productivity',
+        description: 'Akses Canva Pro full fitur untuk kebutuhan desain.',
+        price: 35000,
+        stock: 20,
+        badge: 'Promo'
+    }
+];
+
+const demoUsers = [
+    { id: 1, email: 'admin@digitalshop.com', password: 'admin123', role: 'admin', name: 'Super Admin' },
+    { id: 2, email: 'buyer@digitalshop.com', password: 'buyer123', role: 'customer', name: 'Digital Buyer' }
+];
+
+const DEMO_PRODUCTS_KEY = 'digitalshop_demo_products';
+const forceLocalDemo = new URLSearchParams(window.location.search).get('demo_local') === '1';
+let usingLocalDemoApi = forceLocalDemo;
+
 function formatRupiah(value) {
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(value);
+}
+
+function normalizeEmail(email) {
+    return String(email || '')
+        .trim()
+        .toLowerCase()
+        .replace(/@digitalshop\.local$/, '@digitalshop.com');
+}
+
+function getLocalDemoProducts() {
+    try {
+        const raw = localStorage.getItem(DEMO_PRODUCTS_KEY);
+        if (!raw) {
+            localStorage.setItem(DEMO_PRODUCTS_KEY, JSON.stringify(defaultProducts));
+            return [...defaultProducts];
+        }
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed : [...defaultProducts];
+    } catch {
+        return [...defaultProducts];
+    }
+}
+
+function saveLocalDemoProducts(products) {
+    localStorage.setItem(DEMO_PRODUCTS_KEY, JSON.stringify(products));
+}
+
+function buildErrorMessage(error) {
+    if (!error) {
+        return 'Terjadi kesalahan.';
+    }
+
+    const msg = String(error.message || error);
+    if (msg.includes('expected pattern') || msg.includes('Failed to fetch') || msg.includes('Load failed')) {
+        return 'Koneksi ke API gagal. Sistem otomatis memakai mode demo lokal. Coba login lagi.';
+    }
+
+    return msg;
 }
 
 function renderProducts() {
@@ -70,7 +147,8 @@ function updateAuthUI() {
         return;
     }
 
-    authStatus.textContent = `Login sebagai ${state.user.name} (${state.user.role})`;
+    const modeInfo = usingLocalDemoApi ? ' · mode demo lokal' : '';
+    authStatus.textContent = `Login sebagai ${state.user.name} (${state.user.role})${modeInfo}`;
     logoutBtn.classList.remove('hidden');
 
     if (state.user.role === 'admin') {
@@ -80,7 +158,72 @@ function updateAuthUI() {
     }
 }
 
+async function localDemoRequest(url, options = {}) {
+    const method = (options.method || 'GET').toUpperCase();
+    const body = options.body ? JSON.parse(options.body) : {};
+    const token = state.token;
+    const loggedInUser = token ? demoUsers.find((user) => user.email === token) : null;
+
+    if (url === '/api/login' && method === 'POST') {
+        const email = normalizeEmail(body.email);
+        const user = demoUsers.find((u) => u.email === email && u.password === body.password);
+
+        if (!user) {
+            throw new Error('Email atau password tidak valid.');
+        }
+
+        return {
+            success: true,
+            token: user.email,
+            user: { id: user.id, email: user.email, role: user.role, name: user.name }
+        };
+    }
+
+    if (!loggedInUser) {
+        throw new Error('Unauthorized. Silakan login dulu.');
+    }
+
+    if (url === '/api/logout' && method === 'POST') {
+        return { success: true, message: 'Logout berhasil.' };
+    }
+
+    if (url === '/api/products' && method === 'GET') {
+        return { success: true, products: getLocalDemoProducts() };
+    }
+
+    const stockMatch = url.match(/^\/api\/admin\/products\/(\d+)\/stock$/);
+    if (stockMatch && method === 'PATCH') {
+        if (loggedInUser.role !== 'admin') {
+            throw new Error('Akses khusus admin.');
+        }
+
+        const id = Number(stockMatch[1]);
+        const stock = Number(body.stock);
+        if (!Number.isInteger(stock) || stock < 0) {
+            throw new Error('Stock harus berupa angka >= 0.');
+        }
+
+        const products = getLocalDemoProducts();
+        const index = products.findIndex((item) => item.id === id);
+
+        if (index < 0) {
+            throw new Error('Produk tidak ditemukan.');
+        }
+
+        products[index].stock = stock;
+        saveLocalDemoProducts(products);
+
+        return { success: true, product: products[index], message: 'Stock berhasil diperbarui.' };
+    }
+
+    throw new Error('Endpoint demo tidak tersedia.');
+}
+
 async function request(url, options = {}) {
+    if (usingLocalDemoApi) {
+        return localDemoRequest(url, options);
+    }
+
     const headers = {
         'Content-Type': 'application/json',
         ...options.headers
@@ -90,14 +233,23 @@ async function request(url, options = {}) {
         headers.Authorization = `Bearer ${state.token}`;
     }
 
-    const response = await fetch(url, { ...options, headers });
-    const payload = await response.json();
+    try {
+        const response = await fetch(url, { ...options, headers });
+        const payload = await response.json();
 
-    if (!response.ok) {
-        throw new Error(payload.message || 'Terjadi kesalahan.');
+        if (!response.ok) {
+            throw new Error(payload.message || 'Terjadi kesalahan.');
+        }
+
+        return payload;
+    } catch (error) {
+        if (url.startsWith('/api/')) {
+            usingLocalDemoApi = true;
+            return localDemoRequest(url, options);
+        }
+
+        throw error;
     }
-
-    return payload;
 }
 
 async function loadProducts() {
@@ -124,7 +276,7 @@ loginForm.addEventListener('submit', async (event) => {
         await loadProducts();
         updateAuthUI();
     } catch (error) {
-        alert(error.message);
+        alert(buildErrorMessage(error));
     }
 });
 
@@ -160,7 +312,7 @@ adminRows.addEventListener('click', async (event) => {
         });
         await loadProducts();
     } catch (error) {
-        alert(error.message);
+        alert(buildErrorMessage(error));
     }
 });
 
