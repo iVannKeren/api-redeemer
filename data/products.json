@@ -1,0 +1,29 @@
+[
+  {
+    "id": 1,
+    "name": "Vidio Premium 30 Hari",
+    "category": "Streaming",
+    "description": "Akun Vidio Premium aktif 30 hari, siap pakai.",
+    "price": 45000,
+    "stock": 12,
+    "badge": "Best Seller"
+  },
+  {
+    "id": 2,
+    "name": "Netflix Private 1 Profile",
+    "category": "Streaming",
+    "description": "Akses 1 profile private, garansi replace.",
+    "price": 55000,
+    "stock": 9,
+    "badge": "Popular"
+  },
+  {
+    "id": 3,
+    "name": "Canva Pro 1 Bulan",
+    "category": "Productivity",
+    "description": "Akses Canva Pro full fitur untuk kebutuhan desain.",
+    "price": 35000,
+    "stock": 20,
+    "badge": "Promo"
+  }
+]
