@@ -3,66 +3,45 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Digital Shop Pro</title>
+    <title>Digital Shop Pro · Marketplace Akun Premium</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen">
-    <div class="max-w-6xl mx-auto px-6 py-8">
-        <header class="mb-8">
-            <p class="text-cyan-400 uppercase tracking-[0.35em] text-xs mb-2">Digital account marketplace</p>
-            <h1 class="text-4xl font-black">Digital Shop Pro</h1>
-            <p class="text-slate-300 mt-2">Jual akun premium seperti Vidio Premium, Netflix, Canva Pro, dan lainnya dengan dashboard admin stok terintegrasi.</p>
+    <main class="max-w-7xl mx-auto px-6 py-10">
+        <header class="flex items-center justify-between mb-10">
+            <div>
+                <p class="text-cyan-400 text-xs uppercase tracking-[0.3em]">Digital Account Marketplace</p>
+                <h1 class="text-4xl font-black mt-2">Digital Shop Pro</h1>
+                <p class="text-slate-300 mt-2 max-w-2xl">Beli akun premium, upload bukti pembayaran manual, dan cek status pesanan di client dashboard profesional.</p>
+            </div>
+            <a href="/clientarea" class="hidden md:inline-flex px-4 py-2 rounded-lg border border-cyan-500 text-cyan-300 hover:bg-cyan-500/10">Masuk ke Client Area</a>
         </header>
 
         <section class="grid lg:grid-cols-3 gap-6">
-            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6">
-                <h2 class="text-xl font-semibold mb-4">Login Sistem</h2>
-                <form id="loginForm" class="space-y-4">
-                    <div>
-                        <label class="block text-sm mb-1">Email</label>
-                        <input id="email" type="email" class="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 focus:outline-none focus:border-cyan-400" placeholder="admin@digitalshop.com" required>
+   </div>
+                    <div class="rounded-xl border border-slate-800 p-4 bg-slate-950">
+                        <p class="font-semibold text-cyan-300 mb-1">Admin Verification</p>
+                        <p class="text-slate-400">Review via panel admin dan dukungan Telegram bot untuk operasi cepat.</p>
                     </div>
-                    <div>
-                        <label class="block text-sm mb-1">Password</label>
-                        <input id="password" type="password" class="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 focus:outline-none focus:border-cyan-400" placeholder="••••••••" required>
-                    </div>
-                    <button class="w-full bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold py-2 rounded-lg transition" type="submit">Login</button>
+                </div>
+            </article>
+
+            <aside class="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+                <h2 class="text-xl font-semibold mb-4">Login</h2>
+                <form id="loginForm" class="space-y-3">
+                    <input id="email" type="email" class="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2" placeholder="admin@digitalshop.com" required>
+                    <input id="password" type="password" class="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2" placeholder="password" required>
+                    <button class="w-full bg-cyan-500 text-slate-950 font-bold py-2 rounded-lg" type="submit">Login</button>
                 </form>
                 <div class="mt-4 text-xs text-slate-400 space-y-1">
                     <p><strong>Demo Admin:</strong> admin@digitalshop.com / admin123</p>
                     <p><strong>Demo Buyer:</strong> buyer@digitalshop.com / buyer123</p>
                 </div>
-                <button id="logoutBtn" class="mt-4 w-full border border-slate-700 hover:border-cyan-400 py-2 rounded-lg hidden">Logout</button>
                 <p id="authStatus" class="mt-4 text-sm text-slate-300">Belum login.</p>
-            </div>
-
-            <div class="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-2xl p-6">
-                <div class="flex items-center justify-between mb-4">
-                    <h2 class="text-xl font-semibold">Katalog Premium</h2>
-                    <span class="text-xs px-3 py-1 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">Professional Theme</span>
-                </div>
-                <div id="productGrid" class="grid md:grid-cols-2 gap-4"></div>
-            </div>
+                <a href="/clientarea" class="mt-3 inline-flex text-cyan-300 text-sm hover:underline">Buka Client Area</a>
+            </aside>
         </section>
-
-        <section id="adminPanel" class="mt-6 bg-slate-900 border border-slate-800 rounded-2xl p-6 hidden">
-            <h2 class="text-xl font-semibold mb-4 text-cyan-300">Admin Panel · Kelola Stock</h2>
-            <p class="text-sm text-slate-400 mb-4">Update stok akun premium secara real-time untuk setiap produk.</p>
-            <div class="overflow-x-auto">
-                <table class="w-full text-sm">
-                    <thead>
-                        <tr class="text-left border-b border-slate-800">
-                            <th class="py-2">Produk</th>
-                            <th class="py-2">Harga</th>
-                            <th class="py-2">Stock</th>
-                            <th class="py-2">Aksi</th>
-                        </tr>
-                    </thead>
-                    <tbody id="adminRows"></tbody>
-                </table>
-            </div>
-        </section>
-    </div>
+    </main>
 
     <script src="shop.js"></script>
 </body>
