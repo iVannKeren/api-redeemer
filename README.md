@@ -18,8 +18,8 @@ Buka `http://localhost:3000/shop`.
 
 ## Akun demo
 
-- Admin: `admin@digitalshop.local` / `admin123`
-- Buyer: `buyer@digitalshop.local` / `buyer123`
+- Admin: `admin@digitalshop.com` / `admin123`
+- Buyer: `buyer@digitalshop.com` / `buyer123`
 
 ## Endpoint utama
 
@@ -28,3 +28,9 @@ Buka `http://localhost:3000/shop`.
 - `GET /api/products` (butuh login)
 - `PATCH /api/admin/products/:id/stock` (khusus admin)
 - `POST /api/run-redeem`
+
+
+## Catatan mode demo lokal
+
+- Jika frontend tidak bisa menjangkau endpoint `/api/*` (misalnya saat hanya deploy static), aplikasi otomatis beralih ke **mode demo lokal** agar login demo dan fitur stok tetap bisa dicoba.
+- Tambahkan query `?demo_local=1` untuk memaksa mode demo lokal saat testing.
