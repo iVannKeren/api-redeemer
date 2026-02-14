@@ -111,8 +111,6 @@ Sistem marketplace akun premium dengan area publik + client dashboard terpisah.
   - desktop sidebar tetap
   - mobile sidebar jadi drawer (toggle)
 
----
-
 ## Data & Integrasi (loading / empty / error)
 
 Di `clientarea.js` setiap data utama (`products`, `orders`, `accounts`) punya state:
@@ -163,8 +161,3 @@ Data dashboard ditarik dari:
 ```bash
 npm install
 npm start
-```
-
-## Akun Demo
-- Admin: `admin@digitalshop.com` / `admin123`
-- Buyer: `buyer@digitalshop.com` / `buyer123`
