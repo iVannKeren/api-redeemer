@@ -10,6 +10,10 @@ const puppeteer = require('puppeteer');
 const app = express();
 const PORT = process.env.PORT || 3000;
 const DATA_DIR = path.join(__dirname, 'data');
+
+const DB_PATH = path.join(DATA_DIR, 'app.db');
+const PROOF_DIR = path.join(DATA_DIR, 'payment_proofs');
+
 codex/troubleshoot-admin-demo-login-issue-set5ns
 const DB_PATH = path.join(DATA_DIR, 'app.db');
 const PROOF_DIR = path.join(DATA_DIR, 'payment_proofs');
@@ -40,6 +44,24 @@ function ensureDirs() {
 function sqlEscape(value) {
     if (value === null || value === undefined) {
         return 'NULL';
+
+    }
+    if (typeof value === 'number') {
+        return Number.isFinite(value) ? String(value) : 'NULL';
+    }
+    return `'${String(value).replace(/'/g, "''")}'`;
+}
+
+function runSql(sql) {
+    execFileSync('sqlite3', [DB_PATH, sql], { stdio: 'pipe' });
+}
+
+function querySql(sql) {
+    const raw = execFileSync('sqlite3', ['-json', DB_PATH, sql], { encoding: 'utf8' });
+    const parsed = raw.trim() ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+}
+
     }
     if (typeof value === 'number') {
         return Number.isFinite(value) ? String(value) : 'NULL';
@@ -312,6 +334,10 @@ app.post('/api/login', (req, res) => {
     }
 
     const normalizedEmail = String(email).trim().toLowerCase().replace(/@digitalshop\.local$/, '@digitalshop.com');
+
+    const user = single(`SELECT id, email, role, name FROM users
+        WHERE email = ${sqlEscape(normalizedEmail)} AND password = ${sqlEscape(password)} LIMIT 1;`);
+
  codex/troubleshoot-admin-demo-login-issue-set5ns
     const user = single(`SELECT id, email, role, name FROM users
         WHERE email = ${sqlEscape(normalizedEmail)} AND password = ${sqlEscape(password)} LIMIT 1;`);
@@ -355,6 +381,47 @@ app.patch('/api/admin/products/:id/stock', authRequired, adminRequired, (req, re
     createAuditLog({ adminUserId: req.user.id, actor: 'admin_panel', action: 'PRODUCT_DISPLAY_STOCK_UPDATED', meta: { productId: id, stock } });
     res.json({ success: true, product });
 });
+
+app.post('/api/orders/manual', authRequired, (req, res) => {
+    const productId = Number(req.body.productId);
+    const product = single(`SELECT * FROM products WHERE id = ${sqlEscape(productId)};`);
+    if (!product) {
+        return res.status(404).json({ success: false, message: 'Produk tidak ditemukan.' });
+    }
+
+    runSql(`INSERT INTO invoices (user_id, product_id, amount, payment_method, status, created_at, updated_at)
+        VALUES (${sqlEscape(req.user.id)}, ${sqlEscape(productId)}, ${sqlEscape(product.price)}, 'MANUAL_PAYMENT', 'UNPAID', ${nowSql()}, ${nowSql()});`);
+    const invoice = single('SELECT * FROM invoices ORDER BY id DESC LIMIT 1;');
+    createAuditLog({ actor: 'client', action: 'INVOICE_CREATED', invoiceId: invoice.id, userId: req.user.id });
+    res.json({ success: true, invoice });
+});
+
+app.get('/api/orders/my', authRequired, (req, res) => {
+    const orders = querySql(`SELECT i.*, p.name AS product_name FROM invoices i
+        JOIN products p ON p.id = i.product_id
+        WHERE i.user_id = ${sqlEscape(req.user.id)}
+        ORDER BY i.id DESC;`);
+    res.json({ success: true, orders });
+});
+
+app.post('/api/orders/:id/proofs', authRequired, (req, res) => {
+    const invoiceId = Number(req.params.id);
+    const { fileName, mimeType, contentBase64, source = 'web', telegramFileId = null } = req.body;
+    const invoice = single(`SELECT * FROM invoices WHERE id = ${sqlEscape(invoiceId)} AND user_id = ${sqlEscape(req.user.id)} LIMIT 1;`);
+
+    if (!invoice) {
+        return res.status(404).json({ success: false, message: 'Invoice tidak ditemukan.' });
+    }
+
+    if (!allowedProofMime.has(String(mimeType))) {
+        return res.status(400).json({ success: false, message: 'Mime type file tidak diizinkan.' });
+    }
+
+    const buffer = Buffer.from(String(contentBase64 || ''), 'base64');
+    if (!buffer.length || buffer.length > maxProofBytes) {
+        return res.status(400).json({ success: false, message: 'Ukuran file tidak valid (maks 5MB).' });
+    }
+
 
 app.post('/api/orders/manual', authRequired, (req, res) => {
     const productId = Number(req.body.productId);
@@ -455,6 +522,113 @@ app.post('/api/admin/invoices/:id/reject', authRequired, adminRequired, (req, re
     const reason = String(req.body.reason || '').trim();
     if (!reason) {
         return res.status(400).json({ success: false, message: 'Alasan reject wajib diisi.' });
+
+    }
+    try {
+        rejectInvoice(Number(req.params.id), reason, req.user.id, 'admin_panel');
+        res.json({ success: true });
+    } catch (error) {
+        res.status(400).json({ success: false, message: error.message });
+    }
+});
+
+app.post('/api/admin/premium-stock/bulk', authRequired, adminRequired, (req, res) => {
+    const productId = Number(req.body.productId);
+    const lines = req.body.lines;
+
+    try {
+        const parsed = parseStockLines(lines);
+        for (const item of parsed) {
+            runSql(`INSERT INTO premium_account_stock (product_id, account_email, account_password_encrypted, status, created_by_admin_id)
+                VALUES (${sqlEscape(productId)}, ${sqlEscape(item.email)}, ${sqlEscape(encryptSecret(item.password))}, 'AVAILABLE', ${sqlEscape(req.user.id)});`);
+        }
+        createAuditLog({ adminUserId: req.user.id, actor: 'admin_panel', action: 'STOCK_BULK_ADDED', meta: { productId, count: parsed.length } });
+        sendTelegram({ text: `📦 Admin menambahkan ${parsed.length} stok akun untuk product_id ${productId}.` });
+        res.json({ success: true, count: parsed.length });
+    } catch (error) {
+        res.status(400).json({ success: false, message: error.message });
+    }
+});
+
+app.get('/api/admin/premium-stock', authRequired, adminRequired, (req, res) => {
+    const productId = Number(req.query.productId || 0);
+    const filter = Number.isInteger(productId) && productId > 0 ? `WHERE s.product_id = ${sqlEscape(productId)}` : '';
+    const rows = querySql(`SELECT s.*, p.name AS product_name FROM premium_account_stock s
+        JOIN products p ON p.id = s.product_id
+        ${filter}
+        ORDER BY s.id DESC LIMIT 500;`);
+    res.json({ success: true, stock: rows });
+});
+
+app.delete('/api/admin/premium-stock/:id', authRequired, adminRequired, (req, res) => {
+    const stockId = Number(req.params.id);
+    const stock = single(`SELECT * FROM premium_account_stock WHERE id = ${sqlEscape(stockId)};`);
+    if (!stock) {
+        return res.status(404).json({ success: false, message: 'Stok tidak ditemukan.' });
+    }
+    if (stock.status !== 'AVAILABLE') {
+        return res.status(400).json({ success: false, message: 'Hanya stok AVAILABLE yang boleh dihapus.' });
+    }
+    runSql(`DELETE FROM premium_account_stock WHERE id = ${sqlEscape(stockId)};`);
+    createAuditLog({ adminUserId: req.user.id, actor: 'admin_panel', action: 'STOCK_DELETED', meta: { stockId } });
+    res.json({ success: true });
+});
+
+app.get('/api/admin/audit-logs', authRequired, adminRequired, (req, res) => {
+    const logs = querySql('SELECT * FROM audit_logs ORDER BY id DESC LIMIT 300;');
+    res.json({ success: true, logs });
+});
+
+app.post('/api/telegram/webhook', async (req, res) => {
+    const update = req.body || {};
+    const msg = update.message;
+    const cb = update.callback_query;
+
+    const fromId = String((msg && msg.from && msg.from.id) || (cb && cb.from && cb.from.id) || '');
+    if (!TG_ADMIN_IDS.has(fromId)) {
+        return res.json({ success: true, ignored: true });
+    }
+
+    try {
+        if (msg && typeof msg.text === 'string') {
+            const text = msg.text.trim();
+            if (text.startsWith('/addstock')) {
+                const body = text.replace('/addstock', '').trim();
+                const lines = body || (msg.reply_to_message ? msg.reply_to_message.text : '');
+                const parsed = parseStockLines(lines);
+                const productId = 1;
+                for (const item of parsed) {
+                    runSql(`INSERT INTO premium_account_stock (product_id, account_email, account_password_encrypted, status)
+                        VALUES (${sqlEscape(productId)}, ${sqlEscape(item.email)}, ${sqlEscape(encryptSecret(item.password))}, 'AVAILABLE');`);
+                }
+                createAuditLog({ actor: 'telegram', action: 'STOCK_BULK_ADDED_TELEGRAM', meta: { count: parsed.length } });
+                await sendTelegram({ text: `✅ /addstock berhasil. ${parsed.length} akun ditambahkan.` });
+            }
+
+            if (text.startsWith('/reject')) {
+                const [, invoiceIdRaw, ...reasonWords] = text.split(' ');
+                const reason = reasonWords.join(' ').trim();
+                if (!invoiceIdRaw || !reason) {
+                    await sendTelegram({ text: 'Format: /reject <invoiceId> <alasan>' });
+                } else {
+                    rejectInvoice(Number(invoiceIdRaw), reason, null, 'telegram');
+                    await sendTelegram({ text: `❌ Invoice #${invoiceIdRaw} direject. Alasan: ${reason}` });
+                }
+            }
+        }
+
+        if (cb && cb.data) {
+            const [action, invoiceIdRaw] = cb.data.split(':');
+            const invoiceId = Number(invoiceIdRaw);
+            if (action === 'approve') {
+                const result = approveInvoice(invoiceId, null, 'telegram');
+                await sendTelegram({ text: `✅ Invoice #${invoiceId} approved. Assigned: ${result.assigned ? 'YA' : 'TIDAK'}.` });
+            }
+            if (action === 'reject') {
+                await sendTelegram({ text: `Kirim /reject ${invoiceId} <alasan> untuk reject invoice.` });
+            }
+        }
+
     }
     try {
         rejectInvoice(Number(req.params.id), reason, req.user.id, 'admin_panel');
@@ -652,13 +826,14 @@ app.get('/clientarea', (_, res) => {
     res.sendFile(path.join(__dirname, 'clientarea.html'));
 });
 
- codex/troubleshoot-admin-demo-login-issue-set5ns
+});
 
 app.get('/clientarea', (_, res) => {
     res.sendFile(path.join(__dirname, 'clientarea.html'));
 });
 
  main
+ 
 initDb();
 app.listen(PORT, () => {
     console.log(`Server Backend Bot berjalan di port ${PORT}`);

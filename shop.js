@@ -1,4 +1,3 @@
- codex/troubleshoot-admin-demo-login-issue-set5ns
 const loginForm = document.getElementById('loginForm');
 const authStatus = document.getElementById('authStatus');
 
@@ -25,4 +24,5 @@ loginForm?.addEventListener('submit', async (event) => {
         alert(error.message);
     }
 });
+
  main
