@@ -12,8 +12,8 @@ const DATA_DIR = path.join(__dirname, 'data');
 const PRODUCTS_FILE = path.join(DATA_DIR, 'products.json');
 
 const users = [
-    { id: 1, email: 'admin@digitalshop.local', password: 'admin123', role: 'admin', name: 'Super Admin' },
-    { id: 2, email: 'buyer@digitalshop.local', password: 'buyer123', role: 'customer', name: 'Digital Buyer' }
+    { id: 1, email: 'admin@digitalshop.com', password: 'admin123', role: 'admin', name: 'Super Admin' },
+    { id: 2, email: 'buyer@digitalshop.com', password: 'buyer123', role: 'customer', name: 'Digital Buyer' }
 ];
 const sessions = new Map();
 
@@ -108,7 +108,8 @@ app.post('/api/login', (req, res) => {
         return res.status(400).json({ success: false, message: 'Email dan password wajib diisi.' });
     }
 
-    const foundUser = users.find((u) => u.email === email && u.password === password);
+    const normalizedEmail = String(email).trim().toLowerCase().replace(/@digitalshop\.local$/, '@digitalshop.com');
+    const foundUser = users.find((u) => u.email === normalizedEmail && u.password === password);
 
     if (!foundUser) {
         return res.status(401).json({ success: false, message: 'Email atau password tidak valid.' });
