@@ -10,6 +10,11 @@ const puppeteer = require('puppeteer');
 const app = express();
 const PORT = process.env.PORT || 3000;
 const DATA_DIR = path.join(__dirname, 'data');
+codex/troubleshoot-admin-demo-login-issue-set5ns
+const DB_PATH = path.join(DATA_DIR, 'app.db');
+const PROOF_DIR = path.join(DATA_DIR, 'payment_proofs');
+
+ main
 
 const LOGIN_URL = 'https://www.cloudemulator.net/sign-in';
 const TARGET_URL = 'https://www.cloudemulator.net/app/redeem-code/buy?utm_source=googleads&utm_medium=redfingerh5&utm_campaign=brand-ph&channelCode=web';
@@ -307,6 +312,11 @@ app.post('/api/login', (req, res) => {
     }
 
     const normalizedEmail = String(email).trim().toLowerCase().replace(/@digitalshop\.local$/, '@digitalshop.com');
+ codex/troubleshoot-admin-demo-login-issue-set5ns
+    const user = single(`SELECT id, email, role, name FROM users
+        WHERE email = ${sqlEscape(normalizedEmail)} AND password = ${sqlEscape(password)} LIMIT 1;`);
+
+ main
 
     if (!user) {
         return res.status(401).json({ success: false, message: 'Email atau password tidak valid.' });
@@ -635,13 +645,20 @@ app.post('/api/run-redeem', async (req, res) => {
 });
 
 app.get('/shop', (_, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
+    res.sendFile(path.join(__dirname, 'shop.html'));
 });
 
 app.get('/clientarea', (_, res) => {
     res.sendFile(path.join(__dirname, 'clientarea.html'));
 });
 
+ codex/troubleshoot-admin-demo-login-issue-set5ns
+
+app.get('/clientarea', (_, res) => {
+    res.sendFile(path.join(__dirname, 'clientarea.html'));
+});
+
+ main
 initDb();
 app.listen(PORT, () => {
     console.log(`Server Backend Bot berjalan di port ${PORT}`);
