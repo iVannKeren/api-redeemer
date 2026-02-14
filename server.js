@@ -326,6 +326,10 @@ app.post('/api/logout', authRequired, (req, res) => {
     res.json({ success: true, message: 'Logout berhasil.' });
 });
 
+app.get('/api/me', authRequired, (req, res) => {
+    res.json({ success: true, user: req.user });
+});
+
 app.get('/api/products', authRequired, (req, res) => {
     const products = querySql('SELECT * FROM products ORDER BY id ASC;');
     res.json({ success: true, products });
@@ -636,6 +640,10 @@ app.post('/api/run-redeem', async (req, res) => {
 
 app.get('/shop', (_, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+app.get('/clientarea', (_, res) => {
+    res.sendFile(path.join(__dirname, 'clientarea.html'));
 });
 
 initDb();
