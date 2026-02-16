@@ -1,6 +1,7 @@
 const API_BASE = "/api";
 
-let supabase = null;
+// jangan pakai nama "supabase" biar gak bentrok dengan window.supabase dari CDN
+let sb = null;
 
 // UI elements
 const loginBox = document.getElementById("loginBox");
@@ -25,11 +26,9 @@ function setMsg(text, type = "muted") {
   msg.className = type;
   msg.textContent = text || "";
 }
-
 function setLoginMsg(text) {
   loginMsg.textContent = text || "";
 }
-
 function fmtDate(iso) {
   try { return new Date(iso).toLocaleString(); } catch { return iso || "-"; }
 }
@@ -37,9 +36,7 @@ function fmtDate(iso) {
 async function fetchConfig() {
   const res = await fetch(`${API_BASE}/config`);
   const json = await res.json();
-  if (!res.ok || !json.success) {
-    throw new Error(json?.message || "Failed to load config");
-  }
+  if (!res.ok || !json.success) throw new Error(json?.message || "Failed to load config");
   if (!json.supabaseUrl || !json.supabaseAnonKey) {
     throw new Error("Missing SUPABASE_URL / SUPABASE_ANON_KEY in server env");
   }
@@ -49,20 +46,21 @@ async function fetchConfig() {
 async function initSupabase() {
   setLoginMsg("Loading config...");
   const cfg = await fetchConfig();
-  supabase = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
+
+  // CDN supabase-js v2: window.supabase.createClient(...)
+  sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
+
   setLoginMsg("");
 }
 
-// ================
 // AUTH helpers
-// ================
 async function getToken() {
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { session } } = await sb.auth.getSession();
   return session?.access_token || null;
 }
 
 async function refreshAuthUI() {
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user } } = await sb.auth.getUser();
 
   if (user) {
     userInfo.textContent = `Logged in: ${user.email}`;
@@ -81,34 +79,25 @@ async function refreshAuthUI() {
 btnLogin.addEventListener("click", async () => {
   const email = (emailEl.value || "").trim();
   const password = passEl.value || "";
-
-  if (!email || !password) {
-    setLoginMsg("Email & password wajib diisi.");
-    return;
-  }
+  if (!email || !password) return setLoginMsg("Email & password wajib diisi.");
 
   setLoginMsg("Logging in...");
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) {
-    setLoginMsg(`Login gagal: ${error.message}`);
-    return;
-  }
+  const { error } = await sb.auth.signInWithPassword({ email, password });
+  if (error) return setLoginMsg(`Login gagal: ${error.message}`);
 
   setLoginMsg("Login berhasil.");
   await refreshAuthUI();
 });
 
 btnLogout.addEventListener("click", async () => {
-  await supabase.auth.signOut();
+  await sb.auth.signOut();
   ordersEl.innerHTML = "";
   debugEl.textContent = "{}";
   setMsg("");
   await refreshAuthUI();
 });
 
-// ================
 // API helper
-// ================
 async function apiFetch(path, options = {}) {
   const token = await getToken();
   if (!token) throw new Error("No session token. Login dulu.");
@@ -122,10 +111,7 @@ async function apiFetch(path, options = {}) {
     headers["Content-Type"] = "application/json";
   }
 
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    headers,
-  });
+  const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
 
   const text = await res.text();
   let json;
@@ -134,16 +120,12 @@ async function apiFetch(path, options = {}) {
   debugEl.textContent = JSON.stringify({ status: res.status, json }, null, 2);
 
   if (!res.ok) {
-    const message = json?.message || json?.error || `HTTP ${res.status}`;
-    throw new Error(message);
+    throw new Error(json?.message || json?.error || `HTTP ${res.status}`);
   }
-
   return json;
 }
 
-// ================
 // Render
-// ================
 function renderOrders(orders) {
   if (!orders || orders.length === 0) {
     ordersEl.innerHTML = `<div class="card"><b>Tidak ada data.</b></div>`;
@@ -153,21 +135,18 @@ function renderOrders(orders) {
   ordersEl.innerHTML = orders.map(o => {
     const proofs = Array.isArray(o.order_proofs) ? o.order_proofs : [];
     const proofHtml = proofs.length
-      ? proofs.map(p => {
-          const url = p.file_url || "-";
-          return `
-            <div class="muted">
-              Proof ID: ${p.id} • ${fmtDate(p.created_at)}<br/>
-              <a href="${url}" target="_blank" rel="noopener">Buka bukti</a>
-            </div>
-          `;
-        }).join("<hr/>")
+      ? proofs.map(p => `
+          <div class="muted">
+            Proof ID: ${p.id} • ${fmtDate(p.created_at)}<br/>
+            <a href="${p.file_url || "-"}" target="_blank" rel="noopener">Buka bukti</a>
+          </div>
+        `).join("<hr/>")
       : `<div class="muted">Belum ada bukti di order_proofs.</div>`;
 
     const rejectReason = o.reject_reason ? `<div class="bad">Reject reason: ${o.reject_reason}</div>` : "";
 
     return `
-      <div class="card" data-order-id="${o.id}">
+      <div class="card">
         <div><b>Order #${o.id}</b> <span class="pill">${o.status}</span></div>
         <div class="muted">
           User: ${o.user_id || "-"}<br/>
@@ -176,12 +155,9 @@ function renderOrders(orders) {
           Payment: ${o.payment_method || "-"}<br/>
           Created: ${fmtDate(o.created_at)}
         </div>
-
         ${rejectReason}
-
         <div style="margin-top:10px;"><b>Bukti:</b></div>
         ${proofHtml}
-
         <div class="actions">
           <button onclick="approveOrder(${o.id})">✅ Approve</button>
           <button onclick="rejectOrder(${o.id})">❌ Reject</button>
@@ -191,10 +167,9 @@ function renderOrders(orders) {
   }).join("");
 }
 
-// expose to window for inline onclick
+// expose
 window.approveOrder = async function(orderId) {
   if (!confirm(`Approve order #${orderId}?`)) return;
-
   try {
     setMsg("Processing approve...");
     await apiFetch(`/admin/orders/${orderId}/approve`, { method: "POST" });
@@ -223,7 +198,6 @@ window.rejectOrder = async function(orderId) {
   }
 };
 
-// loaders
 async function loadByStatus(status) {
   try {
     setMsg(`Loading status=${status}...`);
@@ -244,10 +218,7 @@ btnLoadRejected.addEventListener("click", () => loadByStatus("REJECTED"));
   try {
     await initSupabase();
     await refreshAuthUI();
-
-    supabase.auth.onAuthStateChange(async () => {
-      await refreshAuthUI();
-    });
+    sb.auth.onAuthStateChange(async () => refreshAuthUI());
   } catch (e) {
     setLoginMsg(`Init error: ${e.message}`);
   }
