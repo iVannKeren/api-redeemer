@@ -119,9 +119,31 @@ api.post('/orders', authRequired, async (req, res) => {
   }
 });
 
+//
+// ✅ FIX: MY ORDERS HARUS DI ATAS /orders/:id
+//
+api.get('/orders/my', authRequired, async (req, res) => {
+  const sb = supaForUser(req.accessToken);
+  const { data, error } = await sb
+    .from('orders')
+    .select('*, products(name, price)')
+    .eq('user_id', req.user.id)
+    .order('id', { ascending: false });
+
+  if (error) return res.status(500).json({ success: false, message: error.message });
+  res.json({ success: true, orders: data });
+});
+
+//
+// ✅ FIX: validate id supaya "my" / string lain gak dianggap id
+//
 api.get('/orders/:id', authRequired, async (req, res) => {
   const sb = supaForUser(req.accessToken);
   const id = Number(req.params.id);
+
+  if (Number.isNaN(id)) {
+    return res.status(400).json({ success: false, message: 'Invalid order id' });
+  }
 
   const { data, error } = await sb
     .from('orders')
@@ -221,19 +243,6 @@ api.post('/orders/:id/proofs', authRequired, async (req, res) => {
   if (stErr) return res.status(500).json({ success: false, message: stErr.message });
 
   res.json({ success: true, message: 'Bukti diterima. Menunggu review.' });
-});
-
-// MY ORDERS
-api.get('/orders/my', authRequired, async (req, res) => {
-  const sb = supaForUser(req.accessToken);
-  const { data, error } = await sb
-    .from('orders')
-    .select('*, products(name, price)')
-    .eq('user_id', req.user.id)
-    .order('id', { ascending: false });
-
-  if (error) return res.status(500).json({ success: false, message: error.message });
-  res.json({ success: true, orders: data });
 });
 
 // MY PREMIUM ACCOUNTS
