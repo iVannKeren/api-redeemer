@@ -3,12 +3,28 @@ const cors = require('cors');
 const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
-app.use(cors());
+
+// CORS: pastikan Authorization header kebaca + preflight OPTIONS aman
+app.use(
+  cors({
+    origin: true,
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  })
+);
+app.options('*', cors());
+
 app.use(express.json());
 
-// Normalize path: kalau Vercel ngirim path tanpa prefix "/api", kita tambahin lagi
+// ✅ Robust path normalizer untuk Vercel:
+// - Kalau request datang sebagai "/orders/my" (tanpa "/api"), kita prefix.
+// - Tetap aman kalau sudah "/api/..."
 app.use((req, res, next) => {
-  if (!req.url.startsWith('/api')) req.url = '/api' + req.url;
+  // req.originalUrl kadang punya querystring, jadi pakai req.url saja
+  if (!req.url.startsWith('/api')) {
+    req.url = '/api' + req.url;
+  }
   next();
 });
 
@@ -65,7 +81,7 @@ app.get('/api/products', authRequired, async (req, res) => {
   res.json({ success: true, products: data });
 });
 
-// CREATE ORDER (FIXED)
+// CREATE ORDER
 app.post('/api/orders', authRequired, async (req, res) => {
   try {
     const sb = supaForUser(req.accessToken);
@@ -126,7 +142,6 @@ app.get('/api/orders/:id', authRequired, async (req, res) => {
 });
 
 app.get('/api/payment-methods', authRequired, (req, res) => {
-  // bisa hardcode dulu
   res.json({
     success: true,
     methods: [
@@ -156,7 +171,7 @@ app.post('/api/orders/manual', authRequired, async (req, res) => {
     .insert({
       user_id: req.user.id,
       product_id: product.id,
-      product_name: product.name, // biar frontend kamu gak perlu join
+      product_name: product.name,
       qty: 1,
       amount: Number(product.price),
       status: 'UNPAID',
@@ -176,7 +191,6 @@ app.post('/api/orders/:id/proofs', authRequired, async (req, res) => {
     return res.status(400).json({ success: false, message: 'fileName, mimeType, contentBase64 required' });
   }
 
-  // pastikan order milik user
   const sb = supaForUser(req.accessToken);
   const { data: order, error: oErr } = await sb
     .from('orders')
@@ -187,7 +201,6 @@ app.post('/api/orders/:id/proofs', authRequired, async (req, res) => {
 
   if (oErr || !order) return res.status(404).json({ success: false, message: 'Order not found' });
 
-  // upload bukti ke bucket "payment-proofs"
   const bytes = Buffer.from(contentBase64, 'base64');
   const path = `${req.user.id}/${orderId}/${Date.now()}-${fileName}`;
 
@@ -199,7 +212,6 @@ app.post('/api/orders/:id/proofs', authRequired, async (req, res) => {
 
   const { data: pub } = adminSb.storage.from('payment-proofs').getPublicUrl(path);
 
-  // simpan URL bukti + update status
   const { error: insErr } = await sb
     .from('order_proofs')
     .insert({ order_id: orderId, user_id: req.user.id, file_url: pub.publicUrl, mime_type: mimeType });
@@ -241,6 +253,11 @@ app.get('/api/my/premium-accounts', authRequired, async (req, res) => {
 
   if (error) return res.status(500).json({ success: false, message: error.message });
   res.json({ success: true, accounts: data });
+});
+
+// Debug 404 biar jelas request mana yang miss
+app.use((req, res) => {
+  res.status(404).json({ success: false, message: 'Not Found', path: req.originalUrl });
 });
 
 module.exports = app;
