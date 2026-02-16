@@ -48,7 +48,7 @@ form?.addEventListener('submit', async (e) => {
 
     if (error) throw error;
 
-    statusEl.textContent = 'Register berhasil. Cek email untuk verifikasi lalu login.';
+    statusEl.textContent = 'Register berhasil. Silakan login di /shop.';
   } catch (err) {
     statusEl.textContent = err.message || 'Register gagal';
   }
