@@ -46,6 +46,27 @@ async function authRequired(req, res, next) {
   }
 }
 
+// ==========================
+// ADMIN CHECK (WHITELIST EMAIL)
+// ==========================
+const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || "")
+  .split(",")
+  .map((s) => s.trim().toLowerCase())
+  .filter(Boolean);
+
+function adminRequired(req, res, next) {
+  const email = (req.user?.email || "").toLowerCase();
+
+  if (!email || !ADMIN_EMAILS.includes(email)) {
+    return res.status(403).json({
+      success: false,
+      message: "Admin only",
+    });
+  }
+
+  next();
+}
+
 function supaForUser(token) {
   return createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     global: { headers: { Authorization: `Bearer ${token}` } },
@@ -256,6 +277,101 @@ api.get('/my/premium-accounts', authRequired, async (req, res) => {
 
   if (error) return res.status(500).json({ success: false, message: error.message });
   res.json({ success: true, accounts: data });
+});
+
+// =====================================================
+// ADMIN ROUTES - REVIEW PAYMENT PROOF (APPROVE / REJECT)
+// =====================================================
+
+// 1) List orders yang sedang menunggu review bukti
+api.get("/admin/orders/waiting-proof", authRequired, adminRequired, async (req, res) => {
+  const { data, error } = await adminSb
+    .from("orders")
+    .select(`
+      id, user_id, amount, status, invoice, payment_method, created_at,
+      order_proofs ( id, file_url, mime_type, created_at )
+    `)
+    .eq("status", "WAITING_PROOF")
+    .order("id", { ascending: false });
+
+  if (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+
+  return res.json({ success: true, orders: data });
+});
+
+
+// 2) Approve bukti transfer (status => PAID)
+api.post("/admin/orders/:id/approve", authRequired, adminRequired, async (req, res) => {
+  const orderId = Number(req.params.id);
+
+  if (Number.isNaN(orderId)) {
+    return res.status(400).json({ success: false, message: "Invalid order id" });
+  }
+
+  const { data, error } = await adminSb
+    .from("orders")
+    .update({
+      status: "PAID",
+      reject_reason: null,
+    })
+    .eq("id", orderId)
+    .eq("status", "WAITING_PROOF")
+    .select("*")
+    .single();
+
+  if (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+
+  if (!data) {
+    return res.status(409).json({
+      success: false,
+      message: "Already processed / not waiting proof",
+    });
+  }
+
+  return res.json({ success: true, order: data });
+});
+
+
+// 3) Reject bukti transfer (status => UNPAID + alasan)
+api.post("/admin/orders/:id/reject", authRequired, adminRequired, async (req, res) => {
+  const orderId = Number(req.params.id);
+  const reason = (req.body?.reason || "").trim();
+
+  if (Number.isNaN(orderId)) {
+    return res.status(400).json({ success: false, message: "Invalid order id" });
+  }
+
+  if (!reason) {
+    return res.status(400).json({ success: false, message: "reason required" });
+  }
+
+  const { data, error } = await adminSb
+    .from("orders")
+    .update({
+      status: "UNPAID",
+      reject_reason: reason,
+    })
+    .eq("id", orderId)
+    .eq("status", "WAITING_PROOF")
+    .select("*")
+    .single();
+
+  if (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+
+  if (!data) {
+    return res.status(409).json({
+      success: false,
+      message: "Already processed / not waiting proof",
+    });
+  }
+
+  return res.json({ success: true, order: data });
 });
 
 // ============================
