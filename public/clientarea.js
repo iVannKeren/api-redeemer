@@ -47,7 +47,11 @@ function badgeClass(status) {
 }
 
 function formatRupiah(v) {
-  return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(v || 0);
+  return new Intl.NumberFormat('id-ID', {
+    style: 'currency',
+    currency: 'IDR',
+    maximumFractionDigits: 0,
+  }).format(v || 0);
 }
 
 // ✅ helper: ambil nama produk dari join `products`
@@ -58,7 +62,9 @@ function getProductName(order) {
 function showPage(page) {
   state.currentPage = page;
   pageTitle.textContent = page[0].toUpperCase() + page.slice(1);
-  sections.forEach((section) => section.classList.toggle('hidden', section.dataset.section !== page));
+  sections.forEach((section) =>
+    section.classList.toggle('hidden', section.dataset.section !== page)
+  );
   navMenu.querySelectorAll('[data-page]').forEach((btn) => {
     const active = btn.dataset.page === page;
     btn.classList.toggle('bg-cyan-500/20', active);
@@ -108,7 +114,9 @@ async function request(path, options = {}) {
 
   if (res.status === 404) {
     console.error('API 404 Not Found:', url, payload);
-    throw new Error('API tidak ditemukan (404). Pastikan route /api sudah benar dan file clientarea.js sudah update.');
+    throw new Error(
+      'API tidak ditemukan (404). Pastikan route /api sudah benar dan file clientarea.js sudah update.'
+    );
   }
 
   if (!res.ok) {
@@ -142,7 +150,8 @@ function renderDashboard() {
     .join('');
 
   if (!state.orders.length) {
-    latestOrders.innerHTML = '<p class="text-slate-400">Belum ada order. Mulai dari menu Produk / Order.</p>';
+    latestOrders.innerHTML =
+      '<p class="text-slate-400">Belum ada order. Mulai dari menu Produk / Order.</p>';
     return;
   }
 
@@ -208,7 +217,9 @@ function renderTransactions() {
                         <td class="py-2">#${o.id}</td>
                         <td class="py-2">${getProductName(o)}</td>
                         <td class="py-2">${formatRupiah(o.amount)}</td>
-                        <td class="py-2"><span class="text-xs px-2 py-1 rounded-full ${badgeClass(o.status)}">${o.status}</span></td>
+                        <td class="py-2"><span class="text-xs px-2 py-1 rounded-full ${badgeClass(
+                          o.status
+                        )}">${o.status}</span></td>
                     </tr>
                 `
                   )
@@ -221,7 +232,8 @@ function renderTransactions() {
 function renderPayments() {
   if (paymentMethodsBox) {
     if (!state.paymentMethods.length) {
-      paymentMethodsBox.innerHTML = '<p class="text-slate-400 text-sm">Metode pembayaran belum diatur.</p>';
+      paymentMethodsBox.innerHTML =
+        '<p class="text-slate-400 text-sm">Metode pembayaran belum diatur.</p>';
     } else {
       paymentMethodsBox.innerHTML = state.paymentMethods
         .map(
@@ -252,17 +264,17 @@ function renderPayments() {
       const actionHtml = done
         ? `<p class="text-xs text-emerald-300 mt-3">Pembayaran sudah dikonfirmasi.</p>`
         : waiting
-          ? `<p class="text-xs text-sky-300 mt-3">Bukti sudah dikirim. Menunggu review admin.</p>`
-          : `
-                    <div class="mt-3 flex gap-2 items-center">
-                        <input type="file" data-proof-file-id="${o.id}" class="text-xs" accept="image/png,image/jpeg,image/webp,application/pdf">
-                        <button data-upload-proof-id="${o.id}" class="px-3 py-1 rounded bg-emerald-500 text-slate-950 text-xs ${
-                          canUpload ? '' : 'opacity-50 pointer-events-none'
-                        }">
-                            Upload Bukti
-                        </button>
-                    </div>
-                  `;
+        ? `<p class="text-xs text-sky-300 mt-3">Bukti sudah dikirim. Menunggu review admin.</p>`
+        : `
+            <div class="mt-3 flex gap-2 items-center">
+                <input type="file" data-proof-file-id="${o.id}" class="text-xs" accept="image/png,image/jpeg,image/webp,application/pdf">
+                <button data-upload-proof-id="${o.id}" class="px-3 py-1 rounded bg-emerald-500 text-slate-950 text-xs ${
+                  canUpload ? '' : 'opacity-50 pointer-events-none'
+                }">
+                    Upload Bukti
+                </button>
+            </div>
+          `;
 
       return `
         <div class="border border-slate-800 rounded-lg p-3">
@@ -399,6 +411,7 @@ productGrid?.addEventListener('click', async (event) => {
   }
 });
 
+// ✅ FIX: Upload bukti sekarang ada feedback + disable button + alert sukses + reset input
 paymentList?.addEventListener('click', async (event) => {
   const button = event.target.closest('[data-upload-proof-id]');
   if (!button) return;
@@ -406,31 +419,56 @@ paymentList?.addEventListener('click', async (event) => {
   const invoiceId = Number(button.dataset.uploadProofId);
   const fileInput = paymentList.querySelector(`[data-proof-file-id="${invoiceId}"]`);
   const file = fileInput?.files?.[0];
-  if (!file) return alert('Pilih file bukti pembayaran dulu.');
-  // BATAS MAKSIMAL FILE (mis: 2.5MB supaya aman di Vercel + base64)
-const MAX_BYTES = 2.5 * 1024 * 1024;
 
-if (file.size > MAX_BYTES) {
-  alert("File terlalu besar. Maks 2.5MB. Kompres gambar dulu ya (atau upload JPG).");
-  return;
-}
+  if (!file) {
+    alert('Pilih file bukti pembayaran dulu.');
+    return;
+  }
 
-  const base64 = await new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result).split(',')[1]);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
+  // BATAS MAKSIMAL FILE (2.5MB) supaya aman (base64 membesar + limit server)
+  const MAX_BYTES = 2.5 * 1024 * 1024;
+  if (file.size > MAX_BYTES) {
+    alert('File terlalu besar. Maks 2.5MB. Kompres gambar dulu ya (atau upload JPG).');
+    return;
+  }
+
+  // UI feedback
+  const oldText = button.textContent;
+  button.textContent = 'Uploading...';
+  button.disabled = true;
 
   try {
-    await request(`/api/orders/${invoiceId}/proofs`, {
-      method: 'POST',
-      body: JSON.stringify({ fileName: file.name, mimeType: file.type, contentBase64: base64, source: 'web' }),
+    const base64 = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result).split(',')[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
     });
+
+    const resp = await request(`/api/orders/${invoiceId}/proofs`, {
+      method: 'POST',
+      body: JSON.stringify({
+        fileName: file.name,
+        mimeType: file.type || 'application/octet-stream',
+        contentBase64: base64,
+        source: 'web',
+      }),
+    });
+
+    // refresh UI
     await syncData();
     showPage('payments');
+
+    // reset input biar kelihatan sudah ke-handle
+    if (fileInput) fileInput.value = '';
+
+    alert(resp?.message || 'Bukti berhasil diupload. Menunggu review admin.');
   } catch (error) {
-    alert(error.message);
+    console.error(error);
+    alert('Upload gagal: ' + (error?.message || error));
+  } finally {
+    button.textContent = oldText;
+    button.disabled = false;
   }
 });
 
