@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    { "source": "/shop", "destination": "/shop.html" },
+    { "source": "/clientarea", "destination": "/clientarea.html" },
+
+    { "source": "/api/(.*)", "destination": "/api/index.js" }
+  ]
+}
