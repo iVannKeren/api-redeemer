@@ -8,6 +8,7 @@ app.use(express.json());
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 function getBearerToken(req) {
   const auth = req.headers.authorization || '';
@@ -41,6 +42,9 @@ function supaForUser(token) {
   });
 }
 
+// Admin Supabase client (untuk Storage upload, bypass RLS)
+const adminSb = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
 app.get('/api/health', (req, res) => res.json({ success: true, message: 'API ready' }));
 
 app.get('/api/me', authRequired, (req, res) => {
@@ -55,27 +59,49 @@ app.get('/api/products', authRequired, async (req, res) => {
   res.json({ success: true, products: data });
 });
 
-// CREATE ORDER
+// CREATE ORDER (FIXED)
 app.post('/api/orders', authRequired, async (req, res) => {
-  const invoice = `INV-${Date.now()}-${Math.random().toString(16).slice(2, 8).toUpperCase()}`;
+  try {
+    const sb = supaForUser(req.accessToken);
 
-  const { data: order, error } = await sb
-    .from('orders')
-    .insert({
-      user_id: req.user.id,
-      product_id: product.id,
-      qty: q,
-      amount: total,
-      status: 'UNPAID',
-      invoice,
-      payment_method: 'MANUAL_TRANSFER'
-    })
-    .select('*')
-    .single();
+    const productId = Number(req.body?.productId);
+    const qty = Number(req.body?.qty ?? 1);
 
-  if (error) return res.status(500).json({ success: false, message: error.message });
+    if (!productId) return res.status(400).json({ success: false, message: 'productId required' });
+    if (!qty || qty <= 0) return res.status(400).json({ success: false, message: 'qty invalid' });
 
-  res.json({ success: true, order });
+    const { data: product, error: pErr } = await sb
+      .from('products')
+      .select('id,name,price,stock')
+      .eq('id', productId)
+      .single();
+
+    if (pErr || !product) return res.status(404).json({ success: false, message: 'Product not found' });
+    if ((product.stock ?? 0) < qty) return res.status(400).json({ success: false, message: 'Stock tidak cukup' });
+
+    const total = Number(product.price) * qty;
+    const invoice = `INV-${Date.now()}-${Math.random().toString(16).slice(2, 8).toUpperCase()}`;
+
+    const { data: order, error } = await sb
+      .from('orders')
+      .insert({
+        user_id: req.user.id,
+        product_id: product.id,
+        qty,
+        amount: total,
+        status: 'UNPAID',
+        invoice,
+        payment_method: 'MANUAL_TRANSFER',
+      })
+      .select('*')
+      .single();
+
+    if (error) return res.status(500).json({ success: false, message: error.message });
+
+    res.json({ success: true, order });
+  } catch (e) {
+    res.status(500).json({ success: false, message: 'Create order error' });
+  }
 });
 
 app.get('/api/orders/:id', authRequired, async (req, res) => {
@@ -99,8 +125,8 @@ app.get('/api/payment-methods', authRequired, (req, res) => {
     success: true,
     methods: [
       { type: 'BANK', name: 'BCA', number: '1234567890', holder: 'Digital Shop Pro', note: 'Transfer sesuai total invoice.' },
-      { type: 'EWALLET', name: 'DANA', number: '081234567890', holder: 'Digital Shop Pro' }
-    ]
+      { type: 'EWALLET', name: 'DANA', number: '081234567890', holder: 'Digital Shop Pro' },
+    ],
   });
 });
 
@@ -127,7 +153,7 @@ app.post('/api/orders/manual', authRequired, async (req, res) => {
       product_name: product.name, // biar frontend kamu gak perlu join
       qty: 1,
       amount: Number(product.price),
-      status: 'UNPAID'
+      status: 'UNPAID',
     })
     .select('*')
     .single();
@@ -136,13 +162,6 @@ app.post('/api/orders/manual', authRequired, async (req, res) => {
 
   res.json({ success: true, order });
 });
-
-const { createClient } = require('@supabase/supabase-js');
-
-const adminSb = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
 
 app.post('/api/orders/:id/proofs', authRequired, async (req, res) => {
   const orderId = Number(req.params.id);
