@@ -1,27 +1,38 @@
 <!DOCTYPE html>
 <html lang="id">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Client Area · Digital Shop Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
+
 <body class="bg-slate-950 text-slate-100 min-h-screen">
     <div class="min-h-screen flex">
-        <aside id="sidebar" class="fixed md:static inset-y-0 left-0 z-40 w-72 bg-slate-900 border-r border-slate-800 transform -translate-x-full md:translate-x-0 transition">
+        <aside id="sidebar"
+            class="fixed md:static inset-y-0 left-0 z-40 w-72 bg-slate-900 border-r border-slate-800 transform -translate-x-full md:translate-x-0 transition">
             <div class="p-5 border-b border-slate-800">
                 <p class="text-cyan-400 text-xs uppercase tracking-[0.3em]">Client Area</p>
                 <h1 class="text-xl font-black mt-2">Digital Shop Pro</h1>
             </div>
             <nav id="navMenu" class="p-3 space-y-1 text-sm">
-                <button data-page="dashboard" class="w-full text-left px-3 py-2 rounded-lg bg-cyan-500/20 text-cyan-300">Dashboard</button>
-                <button data-page="orders" class="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-800">Produk / Order</button>
-                <button data-page="transactions" class="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-800">Transaksi</button>
-                <button data-page="payments" class="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-800">Pembayaran</button>
-                <button data-page="accounts" class="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-800">Akun Premium Saya</button>
-                <button data-page="history" class="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-800">Riwayat</button>
-                <button data-page="support" class="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-800">Tiket / Support</button>
-                <button data-page="settings" class="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-800">Settings</button>
+                <button data-page="dashboard"
+                    class="w-full text-left px-3 py-2 rounded-lg bg-cyan-500/20 text-cyan-300">Dashboard</button>
+                <button data-page="orders" class="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-800">Produk /
+                    Order</button>
+                <button data-page="transactions"
+                    class="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-800">Transaksi</button>
+                <button data-page="payments"
+                    class="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-800">Pembayaran</button>
+                <button data-page="accounts" class="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-800">Akun
+                    Premium Saya</button>
+                <button data-page="history"
+                    class="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-800">Riwayat</button>
+                <button data-page="support" class="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-800">Tiket /
+                    Support</button>
+                <button data-page="settings"
+                    class="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-800">Settings</button>
             </nav>
         </aside>
 
@@ -29,20 +40,27 @@
             <header class="sticky top-0 z-30 bg-slate-950/95 backdrop-blur border-b border-slate-800">
                 <div class="px-4 md:px-6 py-3 flex items-center justify-between gap-4">
                     <div class="flex items-center gap-2">
-                        <button id="mobileMenuBtn" class="md:hidden px-2 py-1 border border-slate-700 rounded">☰</button>
+                        <button id="mobileMenuBtn"
+                            class="md:hidden px-2 py-1 border border-slate-700 rounded">☰</button>
                         <div>
                             <p class="text-xs text-slate-400">Marketplace Dashboard</p>
                             <h2 id="pageTitle" class="font-semibold">Dashboard</h2>
                         </div>
                     </div>
                     <div class="flex items-center gap-3">
-                        <input type="text" placeholder="Cari invoice / produk..." class="hidden lg:block w-64 rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm">
-                        <button class="hidden md:inline-flex px-3 py-2 rounded-lg border border-slate-700 text-sm">🔔</button>
+                        <input type="text" placeholder="Cari invoice / produk..."
+                            class="hidden lg:block w-64 rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm">
+                        <button
+                            class="hidden md:inline-flex px-3 py-2 rounded-lg border border-slate-700 text-sm">🔔</button>
                         <div class="relative">
-                            <button id="profileBtn" class="px-3 py-2 rounded-lg border border-slate-700 text-sm">Profil ▾</button>
-                            <div id="profileMenu" class="hidden absolute right-0 mt-2 w-48 rounded-lg bg-slate-900 border border-slate-700 shadow-lg overflow-hidden text-sm">
-                                <button data-page-jump="settings" class="w-full text-left px-3 py-2 hover:bg-slate-800">Akun & Pengaturan</button>
-                                <button id="logoutBtn" class="w-full text-left px-3 py-2 hover:bg-slate-800 text-rose-300">Logout</button>
+                            <button id="profileBtn" class="px-3 py-2 rounded-lg border border-slate-700 text-sm">Profil
+                                ▾</button>
+                            <div id="profileMenu"
+                                class="hidden absolute right-0 mt-2 w-48 rounded-lg bg-slate-900 border border-slate-700 shadow-lg overflow-hidden text-sm">
+                                <button data-page-jump="settings"
+                                    class="w-full text-left px-3 py-2 hover:bg-slate-800">Akun & Pengaturan</button>
+                                <button id="logoutBtn"
+                                    class="w-full text-left px-3 py-2 hover:bg-slate-800 text-rose-300">Logout</button>
                             </div>
                         </div>
                     </div>
@@ -56,9 +74,13 @@
                         <div class="rounded-xl border border-slate-800 bg-slate-900 p-4">
                             <h3 class="font-semibold mb-3">Quick Actions</h3>
                             <div class="flex flex-wrap gap-2">
-                                <button data-page-jump="orders" class="px-3 py-2 rounded bg-cyan-500 text-slate-950 text-sm font-semibold">Buat Order</button>
-                                <button data-page-jump="payments" class="px-3 py-2 rounded border border-slate-700 text-sm">Upload Bukti</button>
-                                <button data-page-jump="accounts" class="px-3 py-2 rounded border border-slate-700 text-sm">Lihat Akun Aktif</button>
+                                <button data-page-jump="orders"
+                                    class="px-3 py-2 rounded bg-cyan-500 text-slate-950 text-sm font-semibold">Buat
+                                    Order</button>
+                                <button data-page-jump="payments"
+                                    class="px-3 py-2 rounded border border-slate-700 text-sm">Upload Bukti</button>
+                                <button data-page-jump="accounts"
+                                    class="px-3 py-2 rounded border border-slate-700 text-sm">Lihat Akun Aktif</button>
                             </div>
                         </div>
                         <div class="rounded-xl border border-slate-800 bg-slate-900 p-4">
@@ -92,21 +114,27 @@
 
                 <section data-section="history" class="hidden rounded-xl border border-slate-800 bg-slate-900 p-4">
                     <h3 class="font-semibold mb-2">Riwayat Aktivitas</h3>
-                    <p class="text-sm text-slate-400">Semua perubahan order dan pembayaran tersaji di halaman Transaksi & Pembayaran.</p>
+                    <p class="text-sm text-slate-400">Semua perubahan order dan pembayaran tersaji di halaman Transaksi
+                        & Pembayaran.</p>
                 </section>
 
                 <section data-section="support" class="hidden rounded-xl border border-slate-800 bg-slate-900 p-4">
                     <h3 class="font-semibold mb-2">Support Ticket (Opsional)</h3>
-                    <p class="text-sm text-slate-400">Fitur ticket masih simple: hubungi admin via Telegram/WhatsApp untuk bantuan cepat.</p>
+                    <p class="text-sm text-slate-400">Fitur ticket masih simple: hubungi admin via Telegram/WhatsApp
+                        untuk bantuan cepat.</p>
                 </section>
 
                 <section data-section="settings" class="hidden rounded-xl border border-slate-800 bg-slate-900 p-4">
                     <h3 class="font-semibold mb-3">Profil & Settings</h3>
                     <form id="settingsForm" class="grid md:grid-cols-2 gap-3 text-sm">
-                        <input id="profileName" class="rounded bg-slate-950 border border-slate-700 p-2" placeholder="Nama">
-                        <input id="profileEmail" class="rounded bg-slate-950 border border-slate-700 p-2" placeholder="Email" disabled>
-                        <input type="password" class="rounded bg-slate-950 border border-slate-700 p-2" placeholder="Password baru (dummy UI)">
-                        <button class="px-3 py-2 rounded bg-cyan-500 text-slate-950 font-semibold" type="submit">Simpan (UI Demo)</button>
+                        <input id="profileName" class="rounded bg-slate-950 border border-slate-700 p-2"
+                            placeholder="Nama">
+                        <input id="profileEmail" class="rounded bg-slate-950 border border-slate-700 p-2"
+                            placeholder="Email" disabled>
+                        <input type="password" class="rounded bg-slate-950 border border-slate-700 p-2"
+                            placeholder="Password baru (dummy UI)">
+                        <button class="px-3 py-2 rounded bg-cyan-500 text-slate-950 font-semibold" type="submit">Simpan
+                            (UI Demo)</button>
                     </form>
                 </section>
 
@@ -114,7 +142,13 @@
                     <div class="rounded-xl border border-slate-800 bg-slate-900 p-4">
                         <h3 class="font-semibold mb-3 text-cyan-300">Admin · Kelola Display Stock Produk</h3>
                         <table class="w-full text-sm">
-                            <thead><tr class="text-left border-b border-slate-800"><th>Produk</th><th>Stock</th><th></th></tr></thead>
+                            <thead>
+                                <tr class="text-left border-b border-slate-800">
+                                    <th>Produk</th>
+                                    <th>Stock</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
                             <tbody id="adminRows"></tbody>
                         </table>
                     </div>
@@ -122,7 +156,8 @@
             </main>
         </div>
     </div>
-
+    <pre id="me">Loading...</pre>
     <script src="clientarea.js"></script>
 </body>
+
 </html>

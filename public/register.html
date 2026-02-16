@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Register</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Turnstile -->
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+
+  <!-- Supabase -->
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex items-center justify-center px-6">
+
+  <main class="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-6">
+    <h1 class="text-2xl font-bold mb-2">Buat Akun</h1>
+    <p class="text-slate-400 text-sm mb-6">Daftar dulu, lalu login di halaman Shop.</p>
+
+    <form id="registerForm" class="space-y-3">
+      <input id="email" type="email" class="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2" placeholder="email" required />
+      <input id="password" type="password" class="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2" placeholder="password (min 6)" minlength="6" required />
+
+      <!-- Turnstile widget -->
+      <div
+        class="cf-turnstile"
+        data-sitekey="0x4AAAAAACdqDpz_OJocQbO7
+"
+        data-theme="dark">
+      </div>
+
+      <button class="w-full bg-cyan-500 text-slate-950 font-bold py-2 rounded-lg" type="submit">
+        Register
+      </button>
+    </form>
+
+    <p id="status" class="mt-4 text-sm text-slate-300">—</p>
+
+    <div class="mt-6 text-sm">
+      <a class="text-cyan-300 hover:underline" href="/shop">Kembali ke login</a>
+    </div>
+  </main>
+
+  <script src="/register.js"></script>
+</body>
+</html>
