@@ -51,19 +51,23 @@
             placeholder="password" required />
           <button class="w-full bg-cyan-500 text-slate-950 font-bold py-2 rounded-lg" type="submit">Login</button>
         </form>
-        <div class="mt-4 text-xs text-slate-400 space-y-1">
-          <p><strong>Demo Admin:</strong> admin@digitalshop.com / admin123</p>
-          <p><strong>Demo Buyer:</strong> buyer@digitalshop.com / buyer123</p>
-        </div>
+
         <p id="authStatus" class="mt-4 text-sm text-slate-300">Belum login.</p>
-        <a href="/clientarea" class="mt-3 inline-flex text-cyan-300 text-sm hover:underline">Buka Client Area</a>
+
+        <div class="mt-3 flex gap-4 text-sm">
+          <a href="/clientarea" class="text-cyan-300 hover:underline">Buka Client Area</a>
+          <a href="/register" class="text-cyan-300 hover:underline">Buat akun baru</a>
+        </div>
       </aside>
     </section>
   </main>
 
-  <script src="shop.js"></script>
+  <!-- SUPABASE dulu, baru shop.js -->
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
   <script src="/shop.js"></script>
+</body>
+
+</html>
 </body>
 <a href="/register" class="mt-3 inline-flex text-cyan-300 text-sm hover:underline">Buat akun baru</a>
 
