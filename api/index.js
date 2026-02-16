@@ -4,7 +4,7 @@ const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
 
-// CORS: pastikan Authorization header kebaca + preflight OPTIONS aman
+// CORS: biar Authorization header aman (termasuk preflight)
 app.use(
   cors({
     origin: true,
@@ -16,17 +16,6 @@ app.use(
 app.options('*', cors());
 
 app.use(express.json());
-
-// ✅ Robust path normalizer untuk Vercel:
-// - Kalau request datang sebagai "/orders/my" (tanpa "/api"), kita prefix.
-// - Tetap aman kalau sudah "/api/..."
-app.use((req, res, next) => {
-  // req.originalUrl kadang punya querystring, jadi pakai req.url saja
-  if (!req.url.startsWith('/api')) {
-    req.url = '/api' + req.url;
-  }
-  next();
-});
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
@@ -58,23 +47,27 @@ async function authRequired(req, res, next) {
 }
 
 function supaForUser(token) {
-  // Supabase client yang "login sebagai user" (RLS berlaku)
   return createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     global: { headers: { Authorization: `Bearer ${token}` } },
   });
 }
 
-// Admin Supabase client (untuk Storage upload, bypass RLS)
+// Admin client (untuk upload storage)
 const adminSb = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-app.get('/api/health', (req, res) => res.json({ success: true, message: 'API ready' }));
+// ============================
+// ROUTER (tanpa prefix /api)
+// ============================
+const api = express.Router();
 
-app.get('/api/me', authRequired, (req, res) => {
+api.get('/health', (req, res) => res.json({ success: true, message: 'API ready' }));
+
+api.get('/me', authRequired, (req, res) => {
   res.json({ success: true, user: req.user });
 });
 
 // PRODUCTS
-app.get('/api/products', authRequired, async (req, res) => {
+api.get('/products', authRequired, async (req, res) => {
   const sb = supaForUser(req.accessToken);
   const { data, error } = await sb.from('products').select('*').order('id', { ascending: true });
   if (error) return res.status(500).json({ success: false, message: error.message });
@@ -82,7 +75,7 @@ app.get('/api/products', authRequired, async (req, res) => {
 });
 
 // CREATE ORDER
-app.post('/api/orders', authRequired, async (req, res) => {
+api.post('/orders', authRequired, async (req, res) => {
   try {
     const sb = supaForUser(req.accessToken);
 
@@ -126,7 +119,7 @@ app.post('/api/orders', authRequired, async (req, res) => {
   }
 });
 
-app.get('/api/orders/:id', authRequired, async (req, res) => {
+api.get('/orders/:id', authRequired, async (req, res) => {
   const sb = supaForUser(req.accessToken);
   const id = Number(req.params.id);
 
@@ -141,7 +134,7 @@ app.get('/api/orders/:id', authRequired, async (req, res) => {
   res.json({ success: true, order: data });
 });
 
-app.get('/api/payment-methods', authRequired, (req, res) => {
+api.get('/payment-methods', authRequired, (req, res) => {
   res.json({
     success: true,
     methods: [
@@ -151,7 +144,7 @@ app.get('/api/payment-methods', authRequired, (req, res) => {
   });
 });
 
-app.post('/api/orders/manual', authRequired, async (req, res) => {
+api.post('/orders/manual', authRequired, async (req, res) => {
   const sb = supaForUser(req.accessToken);
 
   const productId = Number(req.body?.productId);
@@ -184,7 +177,7 @@ app.post('/api/orders/manual', authRequired, async (req, res) => {
   res.json({ success: true, order });
 });
 
-app.post('/api/orders/:id/proofs', authRequired, async (req, res) => {
+api.post('/orders/:id/proofs', authRequired, async (req, res) => {
   const orderId = Number(req.params.id);
   const { fileName, mimeType, contentBase64 } = req.body || {};
   if (!fileName || !mimeType || !contentBase64) {
@@ -192,6 +185,7 @@ app.post('/api/orders/:id/proofs', authRequired, async (req, res) => {
   }
 
   const sb = supaForUser(req.accessToken);
+
   const { data: order, error: oErr } = await sb
     .from('orders')
     .select('id,user_id,status')
@@ -230,7 +224,7 @@ app.post('/api/orders/:id/proofs', authRequired, async (req, res) => {
 });
 
 // MY ORDERS
-app.get('/api/orders/my', authRequired, async (req, res) => {
+api.get('/orders/my', authRequired, async (req, res) => {
   const sb = supaForUser(req.accessToken);
   const { data, error } = await sb
     .from('orders')
@@ -243,7 +237,7 @@ app.get('/api/orders/my', authRequired, async (req, res) => {
 });
 
 // MY PREMIUM ACCOUNTS
-app.get('/api/my/premium-accounts', authRequired, async (req, res) => {
+api.get('/my/premium-accounts', authRequired, async (req, res) => {
   const sb = supaForUser(req.accessToken);
   const { data, error } = await sb
     .from('premium_accounts')
@@ -255,7 +249,15 @@ app.get('/api/my/premium-accounts', authRequired, async (req, res) => {
   res.json({ success: true, accounts: data });
 });
 
-// Debug 404 biar jelas request mana yang miss
+// ============================
+// Mount router di 2 tempat:
+// 1) /api/... (normal)
+// 2) /...     (fallback kalau prefix /api ke-strip)
+// ============================
+app.use('/api', api);
+app.use('/', api);
+
+// Debug 404 JSON
 app.use((req, res) => {
   res.status(404).json({ success: false, message: 'Not Found', path: req.originalUrl });
 });
