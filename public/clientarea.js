@@ -35,57 +35,6 @@ const profileEmail = document.getElementById('profileEmail');
 
 const sections = [...document.querySelectorAll('[data-section]')];
 
-/** =========================
- *  AUTH (Supabase session -> token)
- *  =========================
- *
- *  Kenapa perlu ini?
- *  - API kamu butuh Bearer supabase access_token
- *  - Kalau token di localStorage kosong/expired, UI jadi "klik ga respon"
- */
-let sb = null;
-
-async function initSupabaseClientIfAny() {
-  try {
-    // Kalau kamu pakai CDN supabase-js (window.supabase) seperti admin.html
-    if (!window.supabase?.createClient) return;
-
-    // Ambil env publik dari server (kita sudah bikin /api/config)
-    const res = await fetch('/api/config');
-    const cfg = await res.json().catch(() => ({}));
-
-    if (!cfg?.success || !cfg?.supabaseUrl || !cfg?.supabaseAnonKey) {
-      // Kalau config tidak ada, tetap lanjut pakai token localStorage
-      console.warn('Config /api/config tidak tersedia. Fallback ke token localStorage.');
-      return;
-    }
-
-    sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
-
-    // Sync token dari session supabase ke state.token
-    const { data: { session } } = await sb.auth.getSession();
-    const token = session?.access_token || '';
-
-    if (token) {
-      state.token = token;
-      localStorage.setItem('digitalshop_token', token);
-    }
-
-    // Keep token fresh
-    sb.auth.onAuthStateChange(async (_event, session2) => {
-      const t = session2?.access_token || '';
-      state.token = t;
-      if (t) localStorage.setItem('digitalshop_token', t);
-      else {
-        localStorage.removeItem('digitalshop_token');
-        localStorage.removeItem('digitalshop_user');
-      }
-    });
-  } catch (e) {
-    console.warn('initSupabaseClientIfAny error:', e);
-  }
-}
-
 function badgeClass(status) {
   const map = {
     PAID: 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30',
@@ -99,6 +48,11 @@ function badgeClass(status) {
 
 function formatRupiah(v) {
   return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(v || 0);
+}
+
+// ✅ helper: ambil nama produk dari join `products`
+function getProductName(order) {
+  return order?.products?.name || order?.product_name || `Product #${order?.product_id ?? '-'}`;
 }
 
 function showPage(page) {
@@ -128,38 +82,13 @@ async function safeJson(res) {
   }
 }
 
-/**
- * request() sekarang auto-prefix /api
- * - kalau kamu panggil request('/orders/manual') => jadi /api/orders/manual
- * - kalau sudah /api/... => tetap
- */
 async function request(path, options = {}) {
-  // refresh token dari supabase session kalau tersedia
-  if (sb?.auth?.getSession) {
-    try {
-      const { data: { session } } = await sb.auth.getSession();
-      const t = session?.access_token;
-      if (t) {
-        state.token = t;
-        localStorage.setItem('digitalshop_token', t);
-      }
-    } catch {}
-  }
-
   if (!state.token) {
     redirectToShop('Silakan login terlebih dahulu.');
     throw new Error('Unauthorized');
   }
 
-  // pastikan path diawali '/'
-  const rawPath = path.startsWith('/') ? path : `/${path}`;
-
-  // auto add /api prefix kalau belum ada
-  const cleanPath = rawPath.startsWith('/api/') || rawPath === '/api'
-    ? rawPath
-    : `/api${rawPath}`;
-
-  // pakai origin supaya konsisten
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
   const url = new URL(cleanPath, window.location.origin).toString();
 
   const headers = {
@@ -179,7 +108,7 @@ async function request(path, options = {}) {
 
   if (res.status === 404) {
     console.error('API 404 Not Found:', url, payload);
-    throw new Error('API tidak ditemukan (404). Pastikan route /api sudah benar.');
+    throw new Error('API tidak ditemukan (404). Pastikan route /api sudah benar dan file clientarea.js sudah update.');
   }
 
   if (!res.ok) {
@@ -223,7 +152,7 @@ function renderDashboard() {
       (o) => `
         <div class="flex items-center justify-between py-2 border-b border-slate-800 last:border-0">
             <div>
-                <p>#${o.id} · ${o.product_name}</p>
+                <p>#${o.id} · ${getProductName(o)}</p>
                 <p class="text-xs text-slate-400">${formatRupiah(o.amount)}</p>
             </div>
             <span class="text-xs px-2 py-1 rounded-full ${badgeClass(o.status)}">${o.status}</span>
@@ -277,7 +206,7 @@ function renderTransactions() {
                     (o) => `
                     <tr class="border-t border-slate-800">
                         <td class="py-2">#${o.id}</td>
-                        <td class="py-2">${o.product_name}</td>
+                        <td class="py-2">${getProductName(o)}</td>
                         <td class="py-2">${formatRupiah(o.amount)}</td>
                         <td class="py-2"><span class="text-xs px-2 py-1 rounded-full ${badgeClass(o.status)}">${o.status}</span></td>
                     </tr>
@@ -289,7 +218,6 @@ function renderTransactions() {
     `;
 }
 
-/** Metode pembayaran + invoice list */
 function renderPayments() {
   if (paymentMethodsBox) {
     if (!state.paymentMethods.length) {
@@ -338,7 +266,7 @@ function renderPayments() {
 
       return `
         <div class="border border-slate-800 rounded-lg p-3">
-            <p class="font-semibold">Invoice #${o.id} · ${o.product_name}</p>
+            <p class="font-semibold">Invoice #${o.id} · ${getProductName(o)}</p>
             <p class="text-xs text-slate-400 mt-1">Metode: MANUAL_PAYMENT · ${formatRupiah(o.amount)}</p>
             <span class="inline-flex mt-2 text-xs px-2 py-1 rounded-full ${badgeClass(o.status)}">${o.status}</span>
             ${actionHtml}
@@ -390,9 +318,7 @@ function renderAdmin() {
     .join('');
 }
 
-function renderLoadingState() {
-  // optional spinner
-}
+function renderLoadingState() {}
 
 async function syncData() {
   state.loading = true;
@@ -401,11 +327,11 @@ async function syncData() {
 
   try {
     const [me, products, orders, accounts, pay] = await Promise.all([
-      request('/me'),
-      request('/products'),
-      request('/orders/my'),
-      request('/my/premium-accounts'),
-      request('/payment-methods'),
+      request('/api/me'),
+      request('/api/products'),
+      request('/api/orders/my'),
+      request('/api/my/premium-accounts'),
+      request('/api/payment-methods'),
     ]);
 
     state.user = me.user;
@@ -461,8 +387,7 @@ productGrid?.addEventListener('click', async (event) => {
   if (!button) return;
 
   try {
-    // IMPORTANT: endpoint order itu POST, dan harus Bearer token
-    await request('/orders/manual', {
+    await request('/api/orders/manual', {
       method: 'POST',
       body: JSON.stringify({ productId: Number(button.dataset.orderProductId) }),
     });
@@ -492,7 +417,7 @@ paymentList?.addEventListener('click', async (event) => {
   });
 
   try {
-    await request(`/orders/${invoiceId}/proofs`, {
+    await request(`/api/orders/${invoiceId}/proofs`, {
       method: 'POST',
       body: JSON.stringify({ fileName: file.name, mimeType: file.type, contentBase64: base64, source: 'web' }),
     });
@@ -512,7 +437,7 @@ adminRows?.addEventListener('click', async (event) => {
   const newStock = Number(input.value || 0);
 
   try {
-    await request(`/admin/products/${id}/stock`, {
+    await request(`/api/admin/products/${id}/stock`, {
       method: 'POST',
       body: JSON.stringify({ stock: newStock }),
     });
@@ -523,15 +448,5 @@ adminRows?.addEventListener('click', async (event) => {
 });
 
 // start
-(async () => {
-  await initSupabaseClientIfAny();
-
-  // kalau masih gak ada token, arahkan login
-  if (!state.token) {
-    redirectToShop('Silakan login terlebih dahulu.');
-    return;
-  }
-
-  await syncData();
-  showPage('dashboard');
-})();
+syncData();
+showPage('dashboard');

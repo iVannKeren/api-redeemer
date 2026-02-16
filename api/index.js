@@ -46,27 +46,6 @@ async function authRequired(req, res, next) {
   }
 }
 
-// ==========================
-// ADMIN CHECK (WHITELIST EMAIL)
-// ==========================
-const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || "")
-  .split(",")
-  .map((s) => s.trim().toLowerCase())
-  .filter(Boolean);
-
-function adminRequired(req, res, next) {
-  const email = (req.user?.email || "").toLowerCase();
-
-  if (!email || !ADMIN_EMAILS.includes(email)) {
-    return res.status(403).json({
-      success: false,
-      message: "Admin only",
-    });
-  }
-
-  next();
-}
-
 function supaForUser(token) {
   return createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     global: { headers: { Authorization: `Bearer ${token}` } },
@@ -83,6 +62,15 @@ const api = express.Router();
 
 api.get('/health', (req, res) => res.json({ success: true, message: 'API ready' }));
 
+// ✅ config publik untuk frontend (supabase url + anon key dari ENV vercel)
+api.get('/config', (req, res) => {
+  res.json({
+    success: true,
+    supabaseUrl: SUPABASE_URL,
+    supabaseAnonKey: SUPABASE_ANON_KEY,
+  });
+});
+
 api.get('/me', authRequired, (req, res) => {
   res.json({ success: true, user: req.user });
 });
@@ -95,7 +83,7 @@ api.get('/products', authRequired, async (req, res) => {
   res.json({ success: true, products: data });
 });
 
-// CREATE ORDER
+// CREATE ORDER (normal)
 api.post('/orders', authRequired, async (req, res) => {
   try {
     const sb = supaForUser(req.accessToken);
@@ -140,9 +128,7 @@ api.post('/orders', authRequired, async (req, res) => {
   }
 });
 
-//
 // ✅ FIX: MY ORDERS HARUS DI ATAS /orders/:id
-//
 api.get('/orders/my', authRequired, async (req, res) => {
   const sb = supaForUser(req.accessToken);
   const { data, error } = await sb
@@ -155,9 +141,7 @@ api.get('/orders/my', authRequired, async (req, res) => {
   res.json({ success: true, orders: data });
 });
 
-//
 // ✅ FIX: validate id supaya "my" / string lain gak dianggap id
-//
 api.get('/orders/:id', authRequired, async (req, res) => {
   const sb = supaForUser(req.accessToken);
   const id = Number(req.params.id);
@@ -187,6 +171,7 @@ api.get('/payment-methods', authRequired, (req, res) => {
   });
 });
 
+// ✅ FIX UTAMA: /orders/manual jangan insert product_name (karena kolomnya gak ada)
 api.post('/orders/manual', authRequired, async (req, res) => {
   const sb = supaForUser(req.accessToken);
 
@@ -207,10 +192,11 @@ api.post('/orders/manual', authRequired, async (req, res) => {
     .insert({
       user_id: req.user.id,
       product_id: product.id,
-      product_name: product.name,
       qty: 1,
       amount: Number(product.price),
       status: 'UNPAID',
+      payment_method: 'MANUAL_TRANSFER',
+      invoice: `INV-${Date.now()}-${Math.random().toString(16).slice(2, 8).toUpperCase()}`,
     })
     .select('*')
     .single();
@@ -279,133 +265,10 @@ api.get('/my/premium-accounts', authRequired, async (req, res) => {
   res.json({ success: true, accounts: data });
 });
 
-// =====================================================
-// ADMIN ROUTES - REVIEW PAYMENT PROOF (APPROVE / REJECT)
-// =====================================================
-
-// 1) List orders yang sedang menunggu review bukti
-api.get("/admin/orders/waiting-proof", authRequired, adminRequired, async (req, res) => {
-  const { data, error } = await adminSb
-    .from("orders")
-    .select(`
-      id, user_id, amount, status, invoice, payment_method, created_at,
-      order_proofs ( id, file_url, mime_type, created_at )
-    `)
-    .eq("status", "WAITING_PROOF")
-    .order("id", { ascending: false });
-
-  if (error) {
-    return res.status(500).json({ success: false, message: error.message });
-  }
-
-  return res.json({ success: true, orders: data });
-});
-
-// PUBLIC CONFIG for frontend (safe to expose anon key)
-api.get("/config", (req, res) => {
-  return res.json({
-    success: true,
-    supabaseUrl: process.env.SUPABASE_URL,
-    supabaseAnonKey: process.env.SUPABASE_ANON_KEY,
-  });
-});
-
-// ADMIN - list orders by status (PAID / REJECTED / WAITING_PROOF / etc.)
-api.get("/admin/orders", authRequired, adminRequired, async (req, res) => {
-  const status = (req.query.status || "WAITING_PROOF").toString().trim();
-
-  const { data, error } = await adminSb
-    .from("orders")
-    .select(`
-      id, user_id, amount, status, invoice, payment_method, created_at, reject_reason,
-      order_proofs ( id, file_url, mime_type, created_at )
-    `)
-    .eq("status", status)
-    .order("id", { ascending: false });
-
-  if (error) {
-    return res.status(500).json({ success: false, message: error.message });
-  }
-
-  return res.json({ success: true, orders: data });
-});
-
-// 2) Approve bukti transfer (status => PAID)
-api.post("/admin/orders/:id/approve", authRequired, adminRequired, async (req, res) => {
-  const orderId = Number(req.params.id);
-
-  if (Number.isNaN(orderId)) {
-    return res.status(400).json({ success: false, message: "Invalid order id" });
-  }
-
-  const { data, error } = await adminSb
-    .from("orders")
-    .update({
-      status: "PAID",
-      reject_reason: null,
-    })
-    .eq("id", orderId)
-    .eq("status", "WAITING_PROOF")
-    .select("*")
-    .single();
-
-  if (error) {
-    return res.status(500).json({ success: false, message: error.message });
-  }
-
-  if (!data) {
-    return res.status(409).json({
-      success: false,
-      message: "Already processed / not waiting proof",
-    });
-  }
-
-  return res.json({ success: true, order: data });
-});
-
-
-// 3) Reject bukti transfer (status => UNPAID + alasan)
-api.post("/admin/orders/:id/reject", authRequired, adminRequired, async (req, res) => {
-  const orderId = Number(req.params.id);
-  const reason = (req.body?.reason || "").trim();
-
-  if (Number.isNaN(orderId)) {
-    return res.status(400).json({ success: false, message: "Invalid order id" });
-  }
-
-  if (!reason) {
-    return res.status(400).json({ success: false, message: "reason required" });
-  }
-
-  const { data, error } = await adminSb
-    .from("orders")
-    .update({
-      status: "UNPAID",
-      reject_reason: reason,
-    })
-    .eq("id", orderId)
-    .eq("status", "WAITING_PROOF")
-    .select("*")
-    .single();
-
-  if (error) {
-    return res.status(500).json({ success: false, message: error.message });
-  }
-
-  if (!data) {
-    return res.status(409).json({
-      success: false,
-      message: "Already processed / not waiting proof",
-    });
-  }
-
-  return res.json({ success: true, order: data });
-});
-
 // ============================
 // Mount router di 2 tempat:
-// 1) /api/... (normal)
-// 2) /...     (fallback kalau prefix /api ke-strip)
+// 1) /api/. (normal)
+// 2) /.     (fallback kalau prefix /api ke-strip)
 // ============================
 app.use('/api', api);
 app.use('/', api);
