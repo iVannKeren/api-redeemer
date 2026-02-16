@@ -5,7 +5,10 @@
     { "source": "/clientarea", "destination": "/clientarea.html" },
     { "source": "/register", "destination": "/register.html" },
 
-    { "source": "/api/verify-captcha", "destination": "/api/verify-captcha.js" },
-    { "source": "/api/(.*)", "destination": "/api/index.js" }
+    { "source": "/api/verify-captcha", "destination": "/api/verify-captcha" },
+    { "source": "/api/(.*)", "destination": "/api" },
+
+    { "source": "/products", "destination": "/products.html" },
+    { "source": "/payment", "destination": "/payment.html" }
   ]
 }

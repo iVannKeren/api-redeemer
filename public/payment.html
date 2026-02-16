@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pembayaran</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen">
+  <div class="max-w-2xl mx-auto p-6">
+    <div class="flex items-center justify-between mb-6">
+      <h1 class="text-2xl font-bold">Pembayaran</h1>
+      <a href="/clientarea" class="text-cyan-300 hover:underline">Kembali</a>
+    </div>
+
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+      <p id="status" class="text-slate-300 text-sm mb-4"></p>
+
+      <div class="space-y-2">
+        <div>Invoice: <b id="invoice">-</b></div>
+        <div>Produk: <b id="product">-</b></div>
+        <div>Total: <b id="amount">-</b></div>
+        <div>Status: <b id="orderStatus">-</b></div>
+      </div>
+
+      <hr class="my-4 border-slate-800" />
+
+      <div class="text-sm text-slate-300">
+        <p class="font-semibold mb-2">Instruksi Transfer (Demo)</p>
+        <p>Bank: BCA</p>
+        <p>No Rek: 1234567890</p>
+        <p>Atas Nama: Digital Shop Pro</p>
+        <p class="mt-2">Setelah transfer, lanjut ke menu <b>Pembayaran</b> untuk upload bukti (step berikutnya).</p>
+      </div>
+    </div>
+  </div>
+
+  <script src="/payment.js"></script>
+</body>
+</html>
