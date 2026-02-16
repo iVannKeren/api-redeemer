@@ -6,6 +6,12 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Normalize path: kalau Vercel ngirim path tanpa prefix "/api", kita tambahin lagi
+app.use((req, res, next) => {
+  if (!req.url.startsWith('/api')) req.url = '/api' + req.url;
+  next();
+});
+
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
