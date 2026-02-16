@@ -35,6 +35,57 @@ const profileEmail = document.getElementById('profileEmail');
 
 const sections = [...document.querySelectorAll('[data-section]')];
 
+/** =========================
+ *  AUTH (Supabase session -> token)
+ *  =========================
+ *
+ *  Kenapa perlu ini?
+ *  - API kamu butuh Bearer supabase access_token
+ *  - Kalau token di localStorage kosong/expired, UI jadi "klik ga respon"
+ */
+let sb = null;
+
+async function initSupabaseClientIfAny() {
+  try {
+    // Kalau kamu pakai CDN supabase-js (window.supabase) seperti admin.html
+    if (!window.supabase?.createClient) return;
+
+    // Ambil env publik dari server (kita sudah bikin /api/config)
+    const res = await fetch('/api/config');
+    const cfg = await res.json().catch(() => ({}));
+
+    if (!cfg?.success || !cfg?.supabaseUrl || !cfg?.supabaseAnonKey) {
+      // Kalau config tidak ada, tetap lanjut pakai token localStorage
+      console.warn('Config /api/config tidak tersedia. Fallback ke token localStorage.');
+      return;
+    }
+
+    sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
+
+    // Sync token dari session supabase ke state.token
+    const { data: { session } } = await sb.auth.getSession();
+    const token = session?.access_token || '';
+
+    if (token) {
+      state.token = token;
+      localStorage.setItem('digitalshop_token', token);
+    }
+
+    // Keep token fresh
+    sb.auth.onAuthStateChange(async (_event, session2) => {
+      const t = session2?.access_token || '';
+      state.token = t;
+      if (t) localStorage.setItem('digitalshop_token', t);
+      else {
+        localStorage.removeItem('digitalshop_token');
+        localStorage.removeItem('digitalshop_user');
+      }
+    });
+  } catch (e) {
+    console.warn('initSupabaseClientIfAny error:', e);
+  }
+}
+
 function badgeClass(status) {
   const map = {
     PAID: 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30',
@@ -62,7 +113,6 @@ function showPage(page) {
 }
 
 function redirectToShop(message) {
-  // bersihkan session
   localStorage.removeItem('digitalshop_token');
   localStorage.removeItem('digitalshop_user');
   if (message) alert(message);
@@ -78,17 +128,38 @@ async function safeJson(res) {
   }
 }
 
+/**
+ * request() sekarang auto-prefix /api
+ * - kalau kamu panggil request('/orders/manual') => jadi /api/orders/manual
+ * - kalau sudah /api/... => tetap
+ */
 async function request(path, options = {}) {
-  // kalau token belum ada, langsung arahkan login
+  // refresh token dari supabase session kalau tersedia
+  if (sb?.auth?.getSession) {
+    try {
+      const { data: { session } } = await sb.auth.getSession();
+      const t = session?.access_token;
+      if (t) {
+        state.token = t;
+        localStorage.setItem('digitalshop_token', t);
+      }
+    } catch {}
+  }
+
   if (!state.token) {
     redirectToShop('Silakan login terlebih dahulu.');
     throw new Error('Unauthorized');
   }
 
   // pastikan path diawali '/'
-  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  const rawPath = path.startsWith('/') ? path : `/${path}`;
 
-  // pakai origin supaya gak jadi /clientarea/api/... (yang bikin 404)
+  // auto add /api prefix kalau belum ada
+  const cleanPath = rawPath.startsWith('/api/') || rawPath === '/api'
+    ? rawPath
+    : `/api${rawPath}`;
+
+  // pakai origin supaya konsisten
   const url = new URL(cleanPath, window.location.origin).toString();
 
   const headers = {
@@ -99,7 +170,6 @@ async function request(path, options = {}) {
 
   const res = await fetch(url, { ...options, headers });
 
-  // kalau session habis
   if (res.status === 401) {
     redirectToShop('Session habis, silakan login ulang.');
     throw new Error('Session habis, silakan login ulang.');
@@ -107,10 +177,9 @@ async function request(path, options = {}) {
 
   const payload = await safeJson(res);
 
-  // beda antara 404 (route salah) vs "order not found"
   if (res.status === 404) {
     console.error('API 404 Not Found:', url, payload);
-    throw new Error('API tidak ditemukan (404). Pastikan route /api sudah benar dan file clientarea.js sudah update.');
+    throw new Error('API tidak ditemukan (404). Pastikan route /api sudah benar.');
   }
 
   if (!res.ok) {
@@ -332,11 +401,11 @@ async function syncData() {
 
   try {
     const [me, products, orders, accounts, pay] = await Promise.all([
-      request('/api/me'),
-      request('/api/products'),
-      request('/api/orders/my'),
-      request('/api/my/premium-accounts'),
-      request('/api/payment-methods'),
+      request('/me'),
+      request('/products'),
+      request('/orders/my'),
+      request('/my/premium-accounts'),
+      request('/payment-methods'),
     ]);
 
     state.user = me.user;
@@ -390,11 +459,14 @@ logoutBtn?.addEventListener('click', () => {
 productGrid?.addEventListener('click', async (event) => {
   const button = event.target.closest('[data-order-product-id]');
   if (!button) return;
+
   try {
-    await request('/api/orders/manual', {
+    // IMPORTANT: endpoint order itu POST, dan harus Bearer token
+    await request('/orders/manual', {
       method: 'POST',
       body: JSON.stringify({ productId: Number(button.dataset.orderProductId) }),
     });
+
     await syncData();
     showPage('payments');
   } catch (error) {
@@ -420,7 +492,7 @@ paymentList?.addEventListener('click', async (event) => {
   });
 
   try {
-    await request(`/api/orders/${invoiceId}/proofs`, {
+    await request(`/orders/${invoiceId}/proofs`, {
       method: 'POST',
       body: JSON.stringify({ fileName: file.name, mimeType: file.type, contentBase64: base64, source: 'web' }),
     });
@@ -440,7 +512,7 @@ adminRows?.addEventListener('click', async (event) => {
   const newStock = Number(input.value || 0);
 
   try {
-    await request(`/api/admin/products/${id}/stock`, {
+    await request(`/admin/products/${id}/stock`, {
       method: 'POST',
       body: JSON.stringify({ stock: newStock }),
     });
@@ -451,5 +523,15 @@ adminRows?.addEventListener('click', async (event) => {
 });
 
 // start
-syncData();
-showPage('dashboard');
+(async () => {
+  await initSupabaseClientIfAny();
+
+  // kalau masih gak ada token, arahkan login
+  if (!state.token) {
+    redirectToShop('Silakan login terlebih dahulu.');
+    return;
+  }
+
+  await syncData();
+  showPage('dashboard');
+})();
