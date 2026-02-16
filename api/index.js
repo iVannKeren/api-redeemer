@@ -57,22 +57,7 @@ app.get('/api/products', authRequired, async (req, res) => {
 
 // CREATE ORDER
 app.post('/api/orders', authRequired, async (req, res) => {
-  const { product_id, qty } = req.body || {};
-  const q = Number(qty || 1);
-  if (!product_id) return res.status(400).json({ success: false, message: 'product_id required' });
-
-  const sb = supaForUser(req.accessToken);
-
-  // ambil harga produk
-  const { data: product, error: pErr } = await sb
-    .from('products')
-    .select('id,name,price,stock')
-    .eq('id', product_id)
-    .single();
-
-  if (pErr || !product) return res.status(404).json({ success: false, message: 'Product not found' });
-
-  const total = Number(product.price) * q;
+  const invoice = `INV-${Date.now()}-${Math.random().toString(16).slice(2, 8).toUpperCase()}`;
 
   const { data: order, error } = await sb
     .from('orders')
@@ -82,6 +67,8 @@ app.post('/api/orders', authRequired, async (req, res) => {
       qty: q,
       amount: total,
       status: 'UNPAID',
+      invoice,
+      payment_method: 'MANUAL_TRANSFER'
     })
     .select('*')
     .single();
@@ -89,6 +76,120 @@ app.post('/api/orders', authRequired, async (req, res) => {
   if (error) return res.status(500).json({ success: false, message: error.message });
 
   res.json({ success: true, order });
+});
+
+app.get('/api/orders/:id', authRequired, async (req, res) => {
+  const sb = supaForUser(req.accessToken);
+  const id = Number(req.params.id);
+
+  const { data, error } = await sb
+    .from('orders')
+    .select('*, products(name, price)')
+    .eq('id', id)
+    .eq('user_id', req.user.id)
+    .single();
+
+  if (error || !data) return res.status(404).json({ success: false, message: 'Order not found' });
+  res.json({ success: true, order: data });
+});
+
+app.get('/api/payment-methods', authRequired, (req, res) => {
+  // bisa hardcode dulu
+  res.json({
+    success: true,
+    methods: [
+      { type: 'BANK', name: 'BCA', number: '1234567890', holder: 'Digital Shop Pro', note: 'Transfer sesuai total invoice.' },
+      { type: 'EWALLET', name: 'DANA', number: '081234567890', holder: 'Digital Shop Pro' }
+    ]
+  });
+});
+
+app.post('/api/orders/manual', authRequired, async (req, res) => {
+  const sb = supaForUser(req.accessToken);
+
+  const productId = Number(req.body?.productId);
+  if (!productId) return res.status(400).json({ success: false, message: 'productId required' });
+
+  const { data: product, error: pErr } = await sb
+    .from('products')
+    .select('id,name,price,stock')
+    .eq('id', productId)
+    .single();
+
+  if (pErr || !product) return res.status(404).json({ success: false, message: 'Product not found' });
+  if ((product.stock ?? 0) <= 0) return res.status(400).json({ success: false, message: 'Stock habis' });
+
+  const { data: order, error } = await sb
+    .from('orders')
+    .insert({
+      user_id: req.user.id,
+      product_id: product.id,
+      product_name: product.name, // biar frontend kamu gak perlu join
+      qty: 1,
+      amount: Number(product.price),
+      status: 'UNPAID'
+    })
+    .select('*')
+    .single();
+
+  if (error) return res.status(500).json({ success: false, message: error.message });
+
+  res.json({ success: true, order });
+});
+
+const { createClient } = require('@supabase/supabase-js');
+
+const adminSb = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
+
+app.post('/api/orders/:id/proofs', authRequired, async (req, res) => {
+  const orderId = Number(req.params.id);
+  const { fileName, mimeType, contentBase64 } = req.body || {};
+  if (!fileName || !mimeType || !contentBase64) {
+    return res.status(400).json({ success: false, message: 'fileName, mimeType, contentBase64 required' });
+  }
+
+  // pastikan order milik user
+  const sb = supaForUser(req.accessToken);
+  const { data: order, error: oErr } = await sb
+    .from('orders')
+    .select('id,user_id,status')
+    .eq('id', orderId)
+    .eq('user_id', req.user.id)
+    .single();
+
+  if (oErr || !order) return res.status(404).json({ success: false, message: 'Order not found' });
+
+  // upload bukti ke bucket "payment-proofs"
+  const bytes = Buffer.from(contentBase64, 'base64');
+  const path = `${req.user.id}/${orderId}/${Date.now()}-${fileName}`;
+
+  const { error: upErr } = await adminSb.storage
+    .from('payment-proofs')
+    .upload(path, bytes, { contentType: mimeType, upsert: true });
+
+  if (upErr) return res.status(500).json({ success: false, message: upErr.message });
+
+  const { data: pub } = adminSb.storage.from('payment-proofs').getPublicUrl(path);
+
+  // simpan URL bukti + update status
+  const { error: insErr } = await sb
+    .from('order_proofs')
+    .insert({ order_id: orderId, user_id: req.user.id, file_url: pub.publicUrl, mime_type: mimeType });
+
+  if (insErr) return res.status(500).json({ success: false, message: insErr.message });
+
+  const { error: stErr } = await sb
+    .from('orders')
+    .update({ status: 'WAITING_PROOF' })
+    .eq('id', orderId)
+    .eq('user_id', req.user.id);
+
+  if (stErr) return res.status(500).json({ success: false, message: stErr.message });
+
+  res.json({ success: true, message: 'Bukti diterima. Menunggu review.' });
 });
 
 // MY ORDERS
