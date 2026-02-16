@@ -7,6 +7,9 @@ Sistem marketplace akun premium dengan area publik + client dashboard terpisah.
 ```txt
 /
 ├── shop.html             # Landing page (publik utama /shop)
+<<<<<<< HEAD
+├── index.html            # Landing alias (fallback root /)
+=======
 ├── index.html            # Redirect root / ke /shop (hindari duplikasi landing)
 codex/troubleshoot-admin-demo-login-issue-5635j0
 
@@ -17,6 +20,7 @@ codex/troubleshoot-admin-demo-login-issue-5635j0
 ├── index.html            # Landing page (publik)
 main
 main
+>>>>>>> main
 ├── shop.js               # Logic login landing + redirect
 ├── clientarea.html       # Dashboard setelah login
 ├── clientarea.js         # Logic client area (routing menu, data, upload, order)
@@ -25,6 +29,12 @@ main
     ├── app.db            # SQLite database
     └── payment_proofs/   # Bukti pembayaran upload
 ```
+<<<<<<< HEAD
+
+### Route utama
+- Publik:
+  - `GET /shop` (utama) atau `GET /` (alias) → landing page
+=======
 codex/troubleshoot-admin-demo-login-issue-5635j0
 
 ### Route utama
@@ -179,6 +189,7 @@ Data dashboard ditarik dari:
 ### Route utama
 - Publik:
   - `GET /shop` → landing page utama, `GET /` otomatis redirect ke `/shop`
+>>>>>>> main
 - Protected UX:
   - `GET /clientarea` → UI dashboard client (butuh token valid, diverifikasi via `/api/me`)
 - API auth:
@@ -319,6 +330,8 @@ Data dashboard ditarik dari:
 - `POST /api/telegram/webhook`
 
 ## Menjalankan Lokal
+<<<<<<< HEAD
+=======
 main
 
 ### Route utama
@@ -465,6 +478,7 @@ Data dashboard ditarik dari:
 - `POST /api/telegram/webhook`
 
 ## Menjalankan Lokal
+>>>>>>> main
 
 ```bash
 npm install
@@ -474,6 +488,8 @@ npm start
 ## Akun Demo
 - Admin: `admin@digitalshop.com` / `admin123`
 - Buyer: `buyer@digitalshop.com` / `buyer123`
+<<<<<<< HEAD
+=======
 =======
 ## Akun Demo
 - Admin: `admin@digitalshop.com` / `admin123`
@@ -549,3 +565,4 @@ npm install
 npm start
 main
 main
+>>>>>>> main
