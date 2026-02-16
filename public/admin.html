@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Admin - Approve/Reject Proof</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    .row { display: flex; gap: 10px; flex-wrap: wrap; }
+    input, button, textarea { padding: 10px; font-size: 14px; }
+    button { cursor: pointer; }
+    .card { border: 1px solid #ddd; border-radius: 10px; padding: 14px; margin: 12px 0; }
+    .muted { color: #666; font-size: 12px; }
+    .ok { color: #0a7; font-weight: bold; }
+    .bad { color: #c00; font-weight: bold; }
+    .pill { display: inline-block; padding: 4px 10px; border-radius: 999px; background: #f1f1f1; font-size: 12px; }
+    .actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+    .topbar { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .box { border: 1px solid #eee; padding: 12px; border-radius: 10px; margin-top: 12px; }
+    a { word-break: break-all; }
+    pre { background: #111; color: #0f0; padding: 10px; border-radius: 10px; overflow: auto; }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <h2>Admin Panel - Approve/Reject Bukti</h2>
+    <div>
+      <span id="userInfo" class="pill">Not logged in</span>
+      <button id="btnLogout" style="display:none;">Logout</button>
+    </div>
+  </div>
+
+  <div id="loginBox" class="box">
+    <h3>Login Admin</h3>
+    <div class="row">
+      <input id="email" type="email" placeholder="Email" />
+      <input id="password" type="password" placeholder="Password" />
+      <button id="btnLogin">Login</button>
+    </div>
+    <div class="muted" style="margin-top:8px;">
+      Login pakai akun Supabase. Email akun ini harus ada di <code>ADMIN_EMAILS</code> (env Vercel).
+    </div>
+    <div id="loginMsg" class="muted"></div>
+  </div>
+
+  <div id="adminBox" class="box" style="display:none;">
+    <div class="row">
+      <button id="btnLoad">Load WAITING_PROOF</button>
+      <button id="btnLoadApproved">Load APPROVED/PAID (opsional)</button>
+      <button id="btnLoadRejected">Load REJECTED (opsional)</button>
+    </div>
+    <div id="msg" class="muted" style="margin-top:10px;"></div>
+
+    <div id="orders"></div>
+
+    <h4>Debug response (optional)</h4>
+    <pre id="debug">{}</pre>
+  </div>
+
+  <!-- Supabase JS CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/admin.js"></script>
+</body>
+</html>

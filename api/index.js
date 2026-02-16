@@ -301,6 +301,34 @@ api.get("/admin/orders/waiting-proof", authRequired, adminRequired, async (req, 
   return res.json({ success: true, orders: data });
 });
 
+// PUBLIC CONFIG for frontend (safe to expose anon key)
+api.get("/config", (req, res) => {
+  return res.json({
+    success: true,
+    supabaseUrl: process.env.SUPABASE_URL,
+    supabaseAnonKey: process.env.SUPABASE_ANON_KEY,
+  });
+});
+
+// ADMIN - list orders by status (PAID / REJECTED / WAITING_PROOF / etc.)
+api.get("/admin/orders", authRequired, adminRequired, async (req, res) => {
+  const status = (req.query.status || "WAITING_PROOF").toString().trim();
+
+  const { data, error } = await adminSb
+    .from("orders")
+    .select(`
+      id, user_id, amount, status, invoice, payment_method, created_at, reject_reason,
+      order_proofs ( id, file_url, mime_type, created_at )
+    `)
+    .eq("status", status)
+    .order("id", { ascending: false });
+
+  if (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+
+  return res.json({ success: true, orders: data });
+});
 
 // 2) Approve bukti transfer (status => PAID)
 api.post("/admin/orders/:id/approve", authRequired, adminRequired, async (req, res) => {
