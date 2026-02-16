@@ -1,14 +1,3 @@
-const loginForm = document.getElementById('loginForm');
-const authStatus = document.getElementById('authStatus');
-
-async function request(url, options = {}) {
-    const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
-    const res = await fetch(url, { ...options, headers });
-    const payload = await res.json();
-    if (!res.ok) throw new Error(payload.message || 'Terjadi kesalahan');
-    return payload;
-}
-
 loginForm?.addEventListener('submit', async (event) => {
     event.preventDefault();
     try {
