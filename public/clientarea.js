@@ -406,8 +406,14 @@ paymentList?.addEventListener('click', async (event) => {
   const invoiceId = Number(button.dataset.uploadProofId);
   const fileInput = paymentList.querySelector(`[data-proof-file-id="${invoiceId}"]`);
   const file = fileInput?.files?.[0];
-
   if (!file) return alert('Pilih file bukti pembayaran dulu.');
+  // BATAS MAKSIMAL FILE (mis: 2.5MB supaya aman di Vercel + base64)
+const MAX_BYTES = 2.5 * 1024 * 1024;
+
+if (file.size > MAX_BYTES) {
+  alert("File terlalu besar. Maks 2.5MB. Kompres gambar dulu ya (atau upload JPG).");
+  return;
+}
 
   const base64 = await new Promise((resolve, reject) => {
     const reader = new FileReader();
