@@ -1,12 +1,12 @@
 {
-  "routes": [
-    { "src": "^/$", "dest": "/index.html" },
-    { "src": "^/shop$", "dest": "/shop.html" },
-    { "src": "^/clientarea$", "dest": "/clientarea.html" },
-    { "src": "^/register$", "dest": "/register.html" },
-    { "src": "^/products$", "dest": "/products.html" },
-    { "src": "^/payment$", "dest": "/payment.html" },
-
-    { "src": "^/api/(.*)$", "dest": "/api/index.js" }
+  "version": 2,
+  "rewrites": [
+    { "source": "/", "destination": "/shop.html" },
+    { "source": "/shop", "destination": "/shop.html" },
+    { "source": "/clientarea", "destination": "/clientarea.html" },
+    { "source": "/register", "destination": "/register.html" },
+    { "source": "/products", "destination": "/products.html" },
+    { "source": "/payment", "destination": "/payment.html" },
+    { "source": "/api/(.*)", "destination": "/api/index.js" }
   ]
 }

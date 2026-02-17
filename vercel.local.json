@@ -1,8 +1,11 @@
 {
   "rewrites": [
-    { "source": "/", "destination": "/index.html" },
+    { "source": "/", "destination": "/shop.html" },
     { "source": "/shop", "destination": "/shop.html" },
     { "source": "/clientarea", "destination": "/clientarea.html" },
+    { "source": "/register", "destination": "/register.html" },
+    { "source": "/products", "destination": "/products.html" },
+    { "source": "/payment", "destination": "/payment.html" },
     { "source": "/api/(.*)", "destination": "/api/index.js" }
   ]
 }
