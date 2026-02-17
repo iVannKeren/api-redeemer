@@ -385,7 +385,12 @@ profileBtn?.addEventListener('click', () => {
 });
 
 mobileMenuBtn?.addEventListener('click', () => {
-  sidebar?.classList.toggle('hidden');
+  if (!sidebar) return;
+
+  const isOpen = sidebar.classList.contains('translate-x-0');
+  sidebar.classList.toggle('translate-x-0', !isOpen);
+  sidebar.classList.toggle('-translate-x-full', isOpen);
+  mobileMenuBtn.setAttribute('aria-expanded', String(!isOpen));
 });
 
 logoutBtn?.addEventListener('click', () => {
